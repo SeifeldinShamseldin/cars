@@ -1,0 +1,432 @@
+import {
+  Animated,
+  FlatList,
+  Pressable,
+  RefreshControl,
+  StyleSheet,
+  View,
+  type FlatList as FlatListType,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+} from "react-native";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Image } from "expo-image";
+import { Text } from "react-native-paper";
+
+import type { CatalogCategory, CarSummary } from "../../shared/api/catalog";
+import { CatalogHeader } from "../../shared/components/CatalogHeader";
+import { appColors } from "../../shared/theme/paperTheme";
+import { fontFamilies } from "../../shared/theme/typography";
+import { CarsHeroScreen } from "./CarsHeroScreen";
+import { usePaginatedCars } from "./useCarCatalog";
+
+const FLOATING_HEADER_TRIGGER = 132;
+
+type CarsCatalogFeedProps = {
+  category: CatalogCategory;
+  featuredCars: CarSummary[];
+  sellCars: CarSummary[];
+  isFeaturedCarsLoading: boolean;
+  hasFeaturedCarsError: boolean;
+  featuredLabel: string;
+  sellLabel: string;
+  featuredLoadingLabel: string;
+  featuredErrorLabel: string;
+  typeLabel: string;
+  topSpeedLabel: string;
+  torqueLabel: string;
+  yearLabel: string;
+  fixedPanel: "FEATURED" | "SELL";
+  headerTitle: string;
+  searchPlaceholder: string;
+  showHeader?: boolean;
+  initialScrollOffset?: number;
+  onScrollOffsetChange?: (offset: number) => void;
+  isFeaturedCarsRefreshing?: boolean;
+  onRefreshFeaturedCars?: () => Promise<boolean>;
+  onOpenCar: (carId: string) => void;
+};
+
+export const CarsCatalogFeed = ({
+  category,
+  featuredCars,
+  sellCars,
+  isFeaturedCarsLoading,
+  hasFeaturedCarsError,
+  featuredLabel,
+  sellLabel,
+  featuredLoadingLabel,
+  featuredErrorLabel,
+  typeLabel,
+  topSpeedLabel,
+  torqueLabel,
+  yearLabel,
+  fixedPanel,
+  headerTitle,
+  searchPlaceholder,
+  showHeader = true,
+  initialScrollOffset = 0,
+  onScrollOffsetChange,
+  isFeaturedCarsRefreshing = false,
+  onRefreshFeaturedCars,
+  onOpenCar,
+}: CarsCatalogFeedProps) => {
+  const [searchText, setSearchText] = useState("");
+  const headerTranslateY = useRef(new Animated.Value(-96)).current;
+  const headerOpacity = useRef(new Animated.Value(0)).current;
+  const lastScrollOffset = useRef(0);
+  const headerHidden = useRef(true);
+  const listRef = useRef<FlatListType<CarSummary>>(null);
+  const hasRestoredScroll = useRef(false);
+  const {
+    cars,
+    isLoading,
+    isLoadingMore,
+    isRefreshing,
+    hasMore,
+    loadMore,
+    refresh,
+  } =
+    usePaginatedCars(category);
+  const normalizedQuery = searchText.trim().toLowerCase();
+  const matchesQuery = (car: CarSummary) =>
+    normalizedQuery.length === 0 ||
+    [
+      car.brand,
+      car.model,
+      car.type,
+      car.description,
+      car.priceLabel ?? "",
+      `${car.year}`,
+    ]
+      .join(" ")
+      .toLowerCase()
+      .includes(normalizedQuery);
+  const filteredFeaturedCars = useMemo(
+    () => featuredCars.filter(matchesQuery),
+    [featuredCars, normalizedQuery],
+  );
+  const filteredSellCars = useMemo(
+    () => sellCars.filter(matchesQuery),
+    [sellCars, normalizedQuery],
+  );
+  const filteredCars = useMemo(
+    () => cars.filter(matchesQuery),
+    [cars, normalizedQuery],
+  );
+
+  useEffect(() => {
+    if (hasRestoredScroll.current || initialScrollOffset <= 0) {
+      return;
+    }
+
+    const restore = requestAnimationFrame(() => {
+      listRef.current?.scrollToOffset({
+        offset: initialScrollOffset,
+        animated: false,
+      });
+      lastScrollOffset.current = initialScrollOffset;
+      hasRestoredScroll.current = true;
+    });
+
+    return () => {
+      cancelAnimationFrame(restore);
+    };
+  }, [initialScrollOffset]);
+
+  const setHeaderVisibility = (hidden: boolean) => {
+    if (headerHidden.current === hidden) {
+      return;
+    }
+
+    headerHidden.current = hidden;
+    Animated.parallel([
+      Animated.timing(headerTranslateY, {
+        toValue: hidden ? -96 : 0,
+        duration: 180,
+        useNativeDriver: true,
+      }),
+      Animated.timing(headerOpacity, {
+        toValue: hidden ? 0 : 1,
+        duration: 140,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
+
+  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const nextOffset = Math.max(event.nativeEvent.contentOffset.y, 0);
+    onScrollOffsetChange?.(nextOffset);
+
+    if (!showHeader) {
+      lastScrollOffset.current = nextOffset;
+      return;
+    }
+
+    const delta = nextOffset - lastScrollOffset.current;
+
+    if (nextOffset <= FLOATING_HEADER_TRIGGER) {
+      setHeaderVisibility(true);
+    } else if (delta > 8) {
+      setHeaderVisibility(true);
+    } else if (delta < -8) {
+      setHeaderVisibility(false);
+    }
+
+    lastScrollOffset.current = nextOffset;
+  };
+
+  const handleRefresh = () => {
+    void Promise.all([
+      refresh(),
+      onRefreshFeaturedCars ? onRefreshFeaturedCars() : Promise.resolve(false),
+    ]);
+  };
+
+  return (
+    <View style={styles.root}>
+      {showHeader ? (
+        <Animated.View
+          pointerEvents="box-none"
+          style={[
+            styles.floatingHeader,
+            {
+              opacity: headerOpacity,
+              transform: [{ translateY: headerTranslateY }],
+            },
+          ]}
+        >
+          <CatalogHeader
+            searchPlaceholder={searchPlaceholder}
+            value={searchText}
+            onChangeText={setSearchText}
+            onClear={() => setSearchText("")}
+          />
+        </Animated.View>
+      ) : null}
+
+      <FlatList
+        ref={listRef}
+        data={filteredCars}
+        keyExtractor={(item) => item.id}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing || isFeaturedCarsRefreshing}
+            onRefresh={handleRefresh}
+            tintColor={appColors.primary}
+            colors={[appColors.primary]}
+            progressBackgroundColor={appColors.surfaceAlt}
+          />
+        }
+        ListHeaderComponent={
+          <View style={styles.headerStack}>
+            {showHeader ? (
+              <CatalogHeader
+                title={headerTitle}
+                searchPlaceholder={searchPlaceholder}
+                value={searchText}
+                onChangeText={setSearchText}
+                onClear={() => setSearchText("")}
+              />
+            ) : null}
+            <CarsHeroScreen
+              featuredCars={filteredFeaturedCars}
+              sellCars={filteredSellCars}
+              isFeaturedCarsLoading={isFeaturedCarsLoading}
+              hasFeaturedCarsError={hasFeaturedCarsError}
+              featuredLabel={featuredLabel}
+              sellLabel={sellLabel}
+              featuredLoadingLabel={featuredLoadingLabel}
+              featuredErrorLabel={featuredErrorLabel}
+              typeLabel={typeLabel}
+              topSpeedLabel={topSpeedLabel}
+              torqueLabel={torqueLabel}
+              yearLabel={yearLabel}
+              fixedPanel={fixedPanel}
+              onOpenCar={onOpenCar}
+            />
+          </View>
+        }
+        ListHeaderComponentStyle={styles.heroWrap}
+        ListEmptyComponent={
+          isLoading ? (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyText}>Loading cars...</Text>
+            </View>
+          ) : searchText.trim().length > 0 ? (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyText}>No cars matched your search.</Text>
+            </View>
+          ) : null
+        }
+        ListFooterComponent={
+          isLoadingMore ? (
+            <View style={styles.footerState}>
+              <Text style={styles.footerText}>Loading more...</Text>
+            </View>
+          ) : null
+        }
+        onEndReachedThreshold={0.35}
+        onEndReached={() => {
+          if (hasMore && !isLoadingMore) {
+            loadMore();
+          }
+        }}
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
+        renderItem={({ item: car }) => (
+          <Pressable style={styles.card} onPress={() => onOpenCar(car.id)}>
+            <View style={styles.imageWrap}>
+              <Image source={car.imageUrl} style={styles.image} contentFit="cover" />
+            </View>
+
+            <View style={styles.cardBody}>
+              <View style={styles.priceRow}>
+                <Text style={styles.priceText}>{car.priceLabel ?? "View details"}</Text>
+                <Text style={styles.yearText}>{car.year}</Text>
+              </View>
+
+              <Text style={styles.titleText}>
+                {car.brand} {car.model}
+              </Text>
+
+              <View style={styles.metaRow}>
+                <View style={styles.metaBadge}>
+                  <Text style={styles.metaBadgeText}>{car.type}</Text>
+                </View>
+                <View style={styles.metaBadge}>
+                  <Text style={styles.metaBadgeText}>{car.topSpeedKmh} KM/H</Text>
+                </View>
+                <View style={styles.metaBadge}>
+                  <Text style={styles.metaBadgeText}>{car.torqueNm} NM</Text>
+                </View>
+              </View>
+
+              <Text style={styles.descriptionText} numberOfLines={2}>
+                {car.description}
+              </Text>
+            </View>
+          </Pressable>
+        )}
+      />
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+  },
+  content: {
+    paddingBottom: 148,
+  },
+  heroWrap: {
+    marginBottom: 10,
+  },
+  headerStack: {
+    gap: 10,
+  },
+  floatingHeader: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 20,
+  },
+  card: {
+    borderRadius: 24,
+    overflow: "hidden",
+    backgroundColor: appColors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: appColors.ice,
+    marginBottom: 14,
+  },
+  imageWrap: {
+    height: 220,
+    backgroundColor: "#0f131d",
+  },
+  image: {
+    width: "100%",
+    height: "100%",
+  },
+  cardBody: {
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 16,
+    gap: 10,
+  },
+  priceRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 12,
+  },
+  priceText: {
+    color: appColors.primary,
+    fontFamily: fontFamilies.displayBold,
+    fontSize: 22,
+    lineHeight: 24,
+  },
+  yearText: {
+    color: appColors.inkSoft,
+    fontFamily: fontFamilies.displayBold,
+    fontSize: 14,
+    lineHeight: 16,
+  },
+  titleText: {
+    color: appColors.ink,
+    fontFamily: fontFamilies.displayBold,
+    fontSize: 24,
+    lineHeight: 28,
+  },
+  metaRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  metaBadge: {
+    borderRadius: 999,
+    backgroundColor: appColors.background,
+    borderWidth: 1,
+    borderColor: appColors.ice,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  metaBadgeText: {
+    color: appColors.ink,
+    fontFamily: fontFamilies.displayBold,
+    fontSize: 11,
+    lineHeight: 13,
+    textTransform: "uppercase",
+  },
+  descriptionText: {
+    color: appColors.inkSoft,
+    fontFamily: fontFamilies.body,
+    fontSize: 15,
+    lineHeight: 22,
+  },
+  emptyState: {
+    minHeight: 240,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  emptyText: {
+    color: appColors.inkSoft,
+    fontFamily: fontFamilies.displayBold,
+    fontSize: 16,
+    lineHeight: 20,
+  },
+  footerState: {
+    paddingTop: 8,
+    paddingBottom: 10,
+  },
+  footerText: {
+    color: appColors.inkSoft,
+    fontFamily: fontFamilies.displayBold,
+    fontSize: 12,
+    lineHeight: 14,
+    textAlign: "center",
+  },
+});
