@@ -12,9 +12,9 @@ import {
 import { Image } from "expo-image";
 import { Text } from "react-native-paper";
 
-import type { CarSummary } from "../../../shared/api/catalog";
-import { appColors } from "../../../shared/theme/paperTheme";
-import { fontFamilies } from "../../../shared/theme/typography";
+import type { CarSummary } from "../api/catalog";
+import { appColors } from "../theme/paperTheme";
+import { fontFamilies } from "../theme/typography";
 
 export type CarPanel = "FEATURED" | "SELL";
 
@@ -266,27 +266,24 @@ export const CarsHeroScreen = ({
                 </Pressable>
               ))}
             </ScrollView>
-            <View style={styles.paginationRow}>
-              <View style={styles.paginationTrack}>
-                <Animated.View
-                  pointerEvents="none"
-                  style={[
-                    styles.paginationIndicator,
-                    { transform: [{ translateX: paginationIndicator }] },
-                  ]}
-                />
-                {activeCars.map((featuredCar, index) => (
-                  <View
-                    key={featuredCar.id}
+
+            {activeCars.length > 1 ? (
+              <View style={styles.paginationWrap}>
+                <View style={[styles.paginationTrack, { width: activeCars.length * PAGINATION_SLOT + (activeCars.length - 1) * PAGINATION_GAP }]}>
+                  <Animated.View
                     style={[
-                      styles.paginationDot,
-                      index === activeIndex && styles.paginationDotActiveSlot,
-                      index < activeCars.length - 1 && styles.paginationDotGap,
+                      styles.paginationIndicator,
+                      {
+                        transform: [{ translateX: paginationIndicator }],
+                      },
                     ]}
                   />
-                ))}
+                  {activeCars.map((car) => (
+                    <View key={`${car.id}-page`} style={styles.paginationSlot} />
+                  ))}
+                </View>
               </View>
-            </View>
+            ) : null}
           </>
         )}
       </View>
@@ -295,214 +292,200 @@ export const CarsHeroScreen = ({
 };
 
 const styles = StyleSheet.create({
-  featuredCard: {},
+  featuredCard: {
+    borderRadius: 28,
+    overflow: "hidden",
+    backgroundColor: "transparent",
+  },
   featuredContent: {
     gap: 14,
-    paddingTop: 10,
-    paddingBottom: 10,
   },
   heroTabs: {
     position: "relative",
+    alignSelf: "flex-start",
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-  },
-  heroTab: {
-    width: 140,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    gap: 12,
     borderRadius: 999,
     backgroundColor: appColors.surfaceAlt,
-    zIndex: 1,
+    padding: 6,
+  },
+  heroTabIndicator: {
+    position: "absolute",
+    top: 6,
+    left: 6,
+    width: 138,
+    height: 40,
+    borderRadius: 999,
+    backgroundColor: appColors.primary,
+  },
+  heroTab: {
+    minWidth: 138,
+    height: 40,
     alignItems: "center",
     justifyContent: "center",
+    borderRadius: 999,
+    zIndex: 1,
   },
   heroTabActive: {
     backgroundColor: "transparent",
   },
-  heroTabIndicator: {
-    position: "absolute",
-    left: 0,
-    top: 0,
-    bottom: 0,
-    width: 140,
-    backgroundColor: appColors.primary,
-    borderRadius: 999,
-  },
   heroTabText: {
-    color: appColors.ink,
-    fontSize: 12,
-    lineHeight: 14,
-    fontFamily: fontFamilies.displayBold,
-    textTransform: "uppercase",
-    letterSpacing: 1,
-    textAlign: "center",
-  },
-  heroTabTextActive: {
-    color: appColors.primaryDeep,
-  },
-  featuredCarouselContent: {
-    paddingRight: 0,
-  },
-  featuredSlide: {
-    gap: 14,
-  },
-  featuredHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    gap: 12,
-  },
-  featuredBrand: {
-    color: appColors.primary,
-    fontFamily: fontFamilies.displayBold,
-    fontSize: 13,
-    lineHeight: 15,
-    letterSpacing: 1.4,
-    textTransform: "uppercase",
-  },
-  featuredModel: {
-    color: appColors.ink,
-    fontFamily: fontFamilies.displayBold,
-    fontSize: 24,
-    lineHeight: 28,
-    textTransform: "uppercase",
-  },
-  yearBadge: {
-    minWidth: 64,
-    borderRadius: 999,
-    backgroundColor: appColors.primary,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    alignItems: "center",
-  },
-  yearBadgeText: {
-    color: appColors.primaryDeep,
-    fontFamily: fontFamilies.displayBold,
-    fontSize: 12,
-    lineHeight: 14,
-  },
-  featuredImageWrap: {
-    height: 220,
-    backgroundColor: "transparent",
-    alignItems: "center",
-    justifyContent: "flex-start",
-    overflow: "hidden",
-    position: "relative",
-    paddingTop: 12,
-  },
-  featuredBrandBackdrop: {
-    position: "absolute",
-    top: 6,
-    left: 0,
-    color: "rgba(244, 244, 239, 0.20)",
-    fontFamily: fontFamilies.displayBold,
-    fontSize: 58,
-    lineHeight: 62,
-    letterSpacing: 1,
-    textTransform: "uppercase",
-    zIndex: 0,
-  },
-  featuredImage: {
-    width: "100%",
-    height: 146,
-    zIndex: 1,
-    marginTop: 32,
-  },
-  featuredModelBlock: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 6,
-    alignItems: "flex-start",
-    zIndex: 2,
-  },
-  specStrip: {
-    flexDirection: "row",
-    alignItems: "stretch",
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: appColors.ice,
-    paddingVertical: 10,
-  },
-  specStripItem: {
-    flex: 1,
-    minHeight: 64,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    justifyContent: "center",
-    gap: 6,
-  },
-  specStripValue: {
     color: appColors.ink,
     fontFamily: fontFamilies.displayBold,
     fontSize: 14,
     lineHeight: 16,
+    textTransform: "uppercase",
+  },
+  heroTabTextActive: {
+    color: appColors.background,
+  },
+  featuredFallbackBlock: {
+    minHeight: 250,
+    borderRadius: 28,
+    backgroundColor: appColors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: appColors.ice,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 24,
+  },
+  featuredLoading: {
+    color: appColors.inkSoft,
+    fontFamily: fontFamilies.displayBold,
+    fontSize: 16,
+    lineHeight: 20,
+    textAlign: "center",
+  },
+  featuredError: {
+    color: appColors.primary,
+    fontFamily: fontFamilies.displayBold,
+    fontSize: 16,
+    lineHeight: 20,
+    textAlign: "center",
+  },
+  featuredCarouselContent: {
+    alignItems: "stretch",
+  },
+  featuredSlide: {
+    borderRadius: 28,
+    backgroundColor: appColors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: appColors.ice,
+    overflow: "hidden",
+    paddingHorizontal: 18,
+    paddingTop: 18,
+    paddingBottom: 18,
+  },
+  featuredHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 12,
+  },
+  featuredBrand: {
+    color: appColors.primary,
+    fontFamily: fontFamilies.displayBold,
+    fontSize: 16,
+    lineHeight: 18,
+    textTransform: "uppercase",
+  },
+  yearBadge: {
+    borderRadius: 999,
+    backgroundColor: appColors.primary,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+  },
+  yearBadgeText: {
+    color: appColors.background,
+    fontFamily: fontFamilies.displayBold,
+    fontSize: 14,
+    lineHeight: 16,
+  },
+  featuredImageWrap: {
+    position: "relative",
+    minHeight: 240,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
+  },
+  featuredBrandBackdrop: {
+    position: "absolute",
+    left: 0,
+    top: 0,
+    color: appColors.ink,
+    opacity: 0.18,
+    fontFamily: fontFamilies.displayBold,
+    fontSize: 62,
+    lineHeight: 62,
+    textTransform: "uppercase",
+  },
+  featuredImage: {
+    width: "100%",
+    height: 220,
+  },
+  featuredModelBlock: {
+    alignSelf: "stretch",
+    marginTop: 8,
+  },
+  featuredModel: {
+    color: appColors.ink,
+    fontFamily: fontFamilies.displayBold,
+    fontSize: 22,
+    lineHeight: 26,
+    textTransform: "uppercase",
+  },
+  specStrip: {
+    borderTopWidth: 1,
+    borderColor: appColors.ice,
+    paddingTop: 16,
+    flexDirection: "row",
+    alignItems: "stretch",
+  },
+  specStripItem: {
+    flex: 1,
+    gap: 6,
   },
   specDivider: {
     width: 1,
     backgroundColor: appColors.ice,
-    marginVertical: 6,
+    marginHorizontal: 14,
   },
   specLabel: {
     color: appColors.inkSoft,
-    fontFamily: fontFamilies.body,
-    fontSize: 10,
-    lineHeight: 12,
+    fontFamily: fontFamilies.displayBold,
+    fontSize: 11,
+    lineHeight: 13,
     textTransform: "uppercase",
-    letterSpacing: 0.5,
   },
-  paginationRow: {
-    justifyContent: "center",
+  specStripValue: {
+    color: appColors.ink,
+    fontFamily: fontFamilies.displayBold,
+    fontSize: 22,
+    lineHeight: 24,
+  },
+  paginationWrap: {
     alignItems: "center",
-    marginTop: 0,
   },
   paginationTrack: {
-    position: "relative",
+    height: PAGINATION_SLOT,
     flexDirection: "row",
     alignItems: "center",
-  },
-  paginationDot: {
-    width: PAGINATION_SLOT,
-    height: 9,
-    borderRadius: 999,
-    backgroundColor: appColors.ice,
-  },
-  paginationDotActiveSlot: {
-    backgroundColor: "transparent",
-  },
-  paginationDotGap: {
-    marginRight: PAGINATION_GAP,
+    gap: PAGINATION_GAP,
   },
   paginationIndicator: {
     position: "absolute",
     left: 0,
-    top: 0,
     width: PAGINATION_SLOT,
-    height: 9,
+    height: 8,
     borderRadius: 999,
     backgroundColor: appColors.primary,
   },
-  featuredFallbackBlock: {
-    minHeight: 260,
-    borderRadius: 24,
-    backgroundColor: appColors.surfaceAlt,
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 24,
-  },
-  featuredLoading: {
-    color: appColors.primary,
-    fontFamily: fontFamilies.displayBold,
-    fontSize: 18,
-    lineHeight: 24,
-    textAlign: "center",
-  },
-  featuredError: {
-    color: appColors.inkSoft,
-    fontFamily: fontFamilies.displayBold,
-    fontSize: 18,
-    lineHeight: 24,
-    textAlign: "center",
+  paginationSlot: {
+    width: PAGINATION_SLOT,
+    height: 8,
+    borderRadius: 999,
+    backgroundColor: appColors.inkSoft,
+    opacity: 0.4,
   },
 });

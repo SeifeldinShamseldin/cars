@@ -65,6 +65,7 @@
 ```text
 mobile/src/
   app/
+    hooks/
     MountedTabs.tsx
     PreRoomStack.tsx
     RoomContent.tsx
@@ -72,7 +73,6 @@ mobile/src/
     launch/
     sellcar/
     carnews/
-    common/
     games/
       games/
       lobby/
@@ -82,8 +82,11 @@ mobile/src/
   shared/
     api/
     components/
+    hooks/
     lib/
     store/
+      selectors.ts
+      slices/
     theme/
 ```
 
@@ -119,6 +122,13 @@ mobile/src/
 ## Mobile Rendering Notes
 
 - `App.tsx` remains the app entrypoint, but large render layers are split into `mobile/src/app/*`.
+- App-side orchestration hooks live in `mobile/src/app/hooks/*`.
+- Shared catalog behavior lives in `mobile/src/shared/hooks/*`.
+- Shared UI primitives and reusable catalog UI live in `mobile/src/shared/components/*` and are intended to stay dumb.
+- Zustand access is split between:
+  - `mobile/src/shared/store/appStore.ts`
+  - `mobile/src/shared/store/slices/*`
+  - `mobile/src/shared/store/selectors.ts`
 - Main tabs stay mounted so tab switching does not remount the whole screen tree.
 - Car detail opens as an overlay on top of the mounted current tab.
 - Game mode entry opens as an overlay on top of the mounted `Games` tab.

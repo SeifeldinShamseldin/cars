@@ -1,39 +1,30 @@
-import { useEffect, useRef, useState } from "react";
 import { StatusBar } from "expo-status-bar";
-import { Animated, Easing, StyleSheet, View } from "react-native";
+import { Animated, StyleSheet, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { Snackbar, PaperProvider } from "react-native-paper";
 
 import { CarNewsHomeScreen } from "./src/features/carnews/screens/CarNewsHomeScreen";
-import type { HubGame } from "./src/features/games/types";
-import {
-  prefetchCarDetail,
-  useFeaturedCars,
-} from "./src/shared/hooks/useCarCatalog";
+import { useFeaturedCars } from "./src/shared/hooks/useCarCatalog";
 import { GameEntryScreen } from "./src/features/games/games/screens/GameEntryScreen";
 import { GamesHubScreen } from "./src/features/games/games/screens/GamesHubScreen";
 import { LaunchScreen } from "./src/features/launch/screens/LaunchScreen";
 import { NameSetupScreen } from "./src/features/profile/screens/NameSetupScreen";
 import { SellCarHomeScreen } from "./src/features/sellcar/screens/SellCarHomeScreen";
 import { socketClient } from "./src/shared/api/socket";
-import {
-  BottomNav,
-  type BottomNavTab,
-} from "./src/shared/components/BottomNav";
+import { BottomNav } from "./src/shared/components/BottomNav";
 import { ScreenShell } from "./src/shared/components/ScreenShell";
-import {
-  getStoredProfileName,
-  setStoredProfileName,
-} from "./src/shared/lib/storage";
 import { translate } from "./src/shared/lib/i18n";
-import { useAppStore } from "./src/shared/store/appStore";
 import { paperTheme } from "./src/shared/theme/paperTheme";
 import { ProfileScreen } from "./src/features/profile/screens/ProfileScreen";
 import { MountedTabs } from "./src/app/MountedTabs";
 import { PreRoomStack } from "./src/app/PreRoomStack";
 import { RoomContent } from "./src/app/RoomContent";
-
-type EntryMode = HubGame | null;
+import { useLaunchTransition } from "./src/app/hooks/useLaunchTransition";
+import { useOverlayTransition } from "./src/app/hooks/useOverlayTransition";
+import { useProfileState } from "./src/app/hooks/useProfileState";
+import { useSocketLifecycle } from "./src/app/hooks/useSocketLifecycle";
+import { useRoomActions, useRoomStore } from "./src/shared/store/selectors";
+import { usePreRoomFlow } from "./src/app/hooks/usePreRoomFlow";
 
 export default function App() {
   const {
@@ -44,20 +35,24 @@ export default function App() {
     isRefreshing: isFeaturedCarsRefreshing,
     refresh: refreshFeaturedCars,
   } = useFeaturedCars();
-  const [launchPhase, setLaunchPhase] = useState<"visible" | "exiting" | "hidden">("visible");
-  const [hasLoadedProfile, setHasLoadedProfile] = useState(false);
-  const [profileName, setProfileName] = useState("");
-  const [profileDraft, setProfileDraft] = useState("");
-  const [isSavingProfile, setIsSavingProfile] = useState(false);
-  const [activeTab, setActiveTab] = useState<BottomNavTab>("SELL");
-  const [selectedCarId, setSelectedCarId] = useState<string | null>(null);
-  const [sellScrollOffset, setSellScrollOffset] = useState(0);
-  const [updatesScrollOffset, setUpdatesScrollOffset] = useState(0);
-  const [activeMode, setActiveMode] = useState<EntryMode>(null);
-  const [joinRoomCode, setJoinRoomCode] = useState("");
-  const [pendingAutoSelectGame, setPendingAutoSelectGame] = useState<
-    "GUESS_CAR" | "IMPOSTER" | null
-  >(null);
+  const {
+    launchPhase,
+    showLaunch,
+    launchOpacity,
+    launchScale,
+    appOpacity,
+    appTranslateY,
+    appScale,
+    continueFromLaunch,
+  } = useLaunchTransition();
+  const {
+    hasLoadedProfile,
+    profileName,
+    profileDraft,
+    isSavingProfile,
+    setProfileDraft,
+    saveProfileName,
+  } = useProfileState();
   const {
     roomState,
     roomCode,
@@ -65,13 +60,14 @@ export default function App() {
     hostKey,
     roomClosesAt,
     lastError,
-    isConnected,
     currentGuessPayload,
     selectedOptionId,
     guessDisabled,
     guessResults,
     currentImposterPayload,
     imposterResults,
+  } = useRoomStore();
+  const {
     setConnection,
     handleRoomCreated,
     handleRoomJoined,
@@ -87,282 +83,72 @@ export default function App() {
     setSelectedOption,
     markGuessSubmitted,
     resetSession,
-  } = useAppStore();
-  const launchOpacity = useRef(new Animated.Value(1)).current;
-  const launchScale = useRef(new Animated.Value(1)).current;
-  const appOpacity = useRef(new Animated.Value(0)).current;
-  const appTranslateY = useRef(new Animated.Value(18)).current;
-  const appScale = useRef(new Animated.Value(0.985)).current;
-  const modeOpacity = useRef(new Animated.Value(0)).current;
-  const modeTranslateY = useRef(new Animated.Value(18)).current;
-  const detailOpacity = useRef(new Animated.Value(0)).current;
-  const detailTranslateY = useRef(new Animated.Value(18)).current;
-  const showLaunch = launchPhase !== "hidden";
-  const isModeDetailScreen =
-    !roomState && (activeMode === "GUESS_CAR" || activeMode === "IMPOSTER");
+  } = useRoomActions();
+  const {
+    activeTab,
+    setActiveTab,
+    selectedCarId,
+    setSelectedCarId,
+    sellScrollOffset,
+    setSellScrollOffset,
+    updatesScrollOffset,
+    setUpdatesScrollOffset,
+    activeMode,
+    setActiveMode,
+    joinRoomCode,
+    setJoinRoomCode,
+    isModeDetailScreen,
+    createRoomForGame,
+    joinRoomForGame,
+    leaveRoomToPreviousMode,
+    openCarDetail,
+  } = usePreRoomFlow({
+    profileName,
+    roomState,
+    roomCode,
+    playerToken,
+    hostKey,
+    resetSession,
+  });
+  const modeTransition = useOverlayTransition(isModeDetailScreen);
+  const detailTransition = useOverlayTransition(Boolean(selectedCarId));
 
-  useEffect(() => {
-    let isMounted = true;
-
-    const loadProfile = async () => {
-      try {
-        const storedProfileName = await getStoredProfileName();
-        if (!isMounted) {
-          return;
-        }
-
-        if (storedProfileName) {
-          setProfileName(storedProfileName);
-          setProfileDraft(storedProfileName);
-        }
-      } finally {
-        if (isMounted) {
-          setHasLoadedProfile(true);
-        }
-      }
-    };
-
-    void loadProfile();
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    socketClient.setSyncProvider(() => {
-      const currentState = useAppStore.getState();
-      if (!currentState.roomCode || !currentState.playerToken || !currentState.roomState) {
-        return undefined;
-      }
-
-      return {
-        roomCode: currentState.roomCode,
-        playerToken: currentState.playerToken,
-        lastVersion: currentState.roomState.version,
-      };
-    });
-
-    const cleanup = socketClient.setListeners({
-      connect: () => setConnection(true),
-      disconnect: () => setConnection(false),
-      "room.created": handleRoomCreated,
-      "room.joined": handleRoomJoined,
-      "room.state": handleRoomState,
-      "room.updated": handleRoomUpdated,
-      "game.started": handleGameStarted,
-      "round.started": handleRoundStarted,
-      "round.ended": handleRoundEnded,
-      "game.ended": handleGameEnded,
-      "room.closed": handleRoomClosed,
-      error: handleError,
-    });
-
-    socketClient.connect();
-    return cleanup;
-  }, [
-    handleError,
-    handleGameEnded,
-    handleGameStarted,
-    handleRoomClosed,
+  useSocketLifecycle({
+    setConnection,
     handleRoomCreated,
     handleRoomJoined,
     handleRoomState,
     handleRoomUpdated,
-    handleRoundEnded,
+    handleGameStarted,
     handleRoundStarted,
-    setConnection,
-  ]);
-
-  useEffect(() => {
-    if (!roomState) {
-      return;
-    }
-
-    setActiveMode(null);
-    setJoinRoomCode("");
-    setSelectedCarId(null);
-  }, [roomState]);
-
-  useEffect(() => {
-    if (
-      !pendingAutoSelectGame ||
-      !roomState ||
-      !roomCode ||
-      !hostKey ||
-      roomState.status !== "LOBBY"
-    ) {
-      return;
-    }
-
-    if (roomState.gameType === pendingAutoSelectGame) {
-      setPendingAutoSelectGame(null);
-      return;
-    }
-
-    socketClient.selectGame({
-      roomCode,
-      hostKey,
-      gameType: pendingAutoSelectGame,
-    });
-    setPendingAutoSelectGame(null);
-  }, [hostKey, pendingAutoSelectGame, roomCode, roomState]);
-
-  useEffect(() => {
-    if (!isModeDetailScreen) {
-      modeOpacity.setValue(0);
-      modeTranslateY.setValue(18);
-      return;
-    }
-
-    Animated.parallel([
-      Animated.timing(modeOpacity, {
-        toValue: 1,
-        duration: 220,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }),
-      Animated.timing(modeTranslateY, {
-        toValue: 0,
-        duration: 220,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, [isModeDetailScreen, modeOpacity, modeTranslateY]);
-
-  useEffect(() => {
-    if (!selectedCarId) {
-      detailOpacity.setValue(0);
-      detailTranslateY.setValue(18);
-      return;
-    }
-
-    Animated.parallel([
-      Animated.timing(detailOpacity, {
-        toValue: 1,
-        duration: 220,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }),
-      Animated.timing(detailTranslateY, {
-        toValue: 0,
-        duration: 220,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, [detailOpacity, detailTranslateY, selectedCarId]);
-
-  const saveProfileName = async (nextName: string) => {
-    const trimmedName = nextName.trim();
-    if (!trimmedName) {
-      return;
-    }
-
-    setIsSavingProfile(true);
-    try {
-      await setStoredProfileName(trimmedName);
-      setProfileName(trimmedName);
-      setProfileDraft(trimmedName);
-    } finally {
-      setIsSavingProfile(false);
-    }
-  };
-
-  const createRoomForGame = (game: "GUESS_CAR" | "IMPOSTER") => {
-    if (!profileName.trim()) {
-      return;
-    }
-
-    setPendingAutoSelectGame(game);
-    socketClient.createRoom({ nickname: profileName.trim() });
-  };
-
-  const joinRoomForGame = () => {
-    if (!profileName.trim() || !joinRoomCode.trim() || !activeMode) {
-      return;
-    }
-
-    socketClient.joinRoom({
-      roomCode: joinRoomCode.trim().toUpperCase(),
-      nickname: profileName.trim(),
-    });
-  };
-
-  const returnToPreviousMode = (gameType: "NONE" | "GUESS_CAR" | "IMPOSTER") => {
-    if (gameType === "GUESS_CAR" || gameType === "IMPOSTER") {
-      setActiveTab("GAMES");
-      setActiveMode(gameType);
-      return;
-    }
-
-    setActiveTab("GAMES");
-    setActiveMode(null);
-  };
-
-  const leaveRoomToPreviousMode = (gameType: "NONE" | "GUESS_CAR" | "IMPOSTER") => {
-    returnToPreviousMode(gameType);
-    if (roomCode && playerToken) {
-      socketClient.leaveRoom({ roomCode, playerToken });
-    }
-
-    resetSession();
-  };
-
-  const openCarDetail = (carId: string) => {
-    void prefetchCarDetail(carId);
-    setSelectedCarId(carId);
-  };
+    handleRoundEnded,
+    handleGameEnded,
+    handleRoomClosed,
+    handleError,
+  });
 
   const closeCarDetail = () => {
-    Animated.parallel([
-      Animated.timing(detailOpacity, {
-        toValue: 0,
-        duration: 180,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }),
-      Animated.timing(detailTranslateY, {
-        toValue: 18,
-        duration: 180,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
+    detailTransition.close(() => {
       setSelectedCarId(null);
     });
   };
 
   const dismissCarDetailAfterSwipe = () => {
-    detailOpacity.setValue(0);
-    detailTranslateY.setValue(18);
-    setSelectedCarId(null);
+    detailTransition.dismiss(() => {
+      setSelectedCarId(null);
+    });
   };
 
   const closeModeDetail = () => {
-    Animated.parallel([
-      Animated.timing(modeOpacity, {
-        toValue: 0,
-        duration: 180,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }),
-      Animated.timing(modeTranslateY, {
-        toValue: 18,
-        duration: 180,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
+    modeTransition.close(() => {
       setActiveMode(null);
     });
   };
 
   const dismissModeDetailAfterSwipe = () => {
-    modeOpacity.setValue(0);
-    modeTranslateY.setValue(18);
-    setActiveMode(null);
+    modeTransition.dismiss(() => {
+      setActiveMode(null);
+    });
   };
 
   const t = (
@@ -390,16 +176,7 @@ export default function App() {
         updatesLabel={t("common.carUpdates")}
         gamesLabel={t("common.games")}
         profileLabel={t("common.profile")}
-        onTabChange={(tab) => {
-          if (tab === activeTab) {
-            return;
-          }
-
-          setActiveTab(tab);
-          setActiveMode(null);
-          setSelectedCarId(null);
-          setJoinRoomCode("");
-        }}
+        onTabChange={setActiveTab}
       />
     ) : undefined;
 
@@ -555,10 +332,10 @@ export default function App() {
                   modeDetail={renderModeDetailContent()}
                   showModeDetail={isModeDetailScreen}
                   selectedCarId={selectedCarId}
-                  modeOpacity={modeOpacity}
-                  modeTranslateY={modeTranslateY}
-                  detailOpacity={detailOpacity}
-                  detailTranslateY={detailTranslateY}
+                  modeOpacity={modeTransition.opacity}
+                  modeTranslateY={modeTransition.translateY}
+                  detailOpacity={detailTransition.opacity}
+                  detailTranslateY={detailTransition.translateY}
                   onDismissModeSwipe={dismissModeDetailAfterSwipe}
                   onDismissCarSwipe={dismissCarDetailAfterSwipe}
                   onCloseCar={closeCarDetail}
@@ -661,47 +438,7 @@ export default function App() {
                 metaLabel={t("launch.metaLabel")}
                 metaValue={t("launch.metaValue")}
                 continueLabel={t("common.continue")}
-                onContinue={() => {
-                  if (launchPhase !== "visible") {
-                    return;
-                  }
-
-                  setLaunchPhase("exiting");
-                  Animated.parallel([
-                    Animated.timing(launchOpacity, {
-                      toValue: 0,
-                      duration: 320,
-                      easing: Easing.out(Easing.cubic),
-                      useNativeDriver: true,
-                    }),
-                    Animated.timing(launchScale, {
-                      toValue: 1.06,
-                      duration: 320,
-                      easing: Easing.out(Easing.cubic),
-                      useNativeDriver: true,
-                    }),
-                    Animated.timing(appOpacity, {
-                      toValue: 1,
-                      duration: 360,
-                      easing: Easing.out(Easing.cubic),
-                      useNativeDriver: true,
-                    }),
-                    Animated.timing(appTranslateY, {
-                      toValue: 0,
-                      duration: 360,
-                      easing: Easing.out(Easing.cubic),
-                      useNativeDriver: true,
-                    }),
-                    Animated.timing(appScale, {
-                      toValue: 1,
-                      duration: 360,
-                      easing: Easing.out(Easing.cubic),
-                      useNativeDriver: true,
-                    }),
-                  ]).start(() => {
-                    setLaunchPhase("hidden");
-                  });
-                }}
+                onContinue={continueFromLaunch}
               />
             </Animated.View>
           ) : null}

@@ -3,7 +3,7 @@ import { Animated, StyleSheet, View } from "react-native";
 
 import { ScreenShell } from "../shared/components/ScreenShell";
 import { SwipeBackOverlay } from "../shared/components/SwipeBackOverlay";
-import { CarDetailScreen } from "../features/common/components/CarDetailScreen";
+import { CarDetailScreen } from "../shared/components/CarDetailScreen";
 
 type PreRoomStackProps = {
   footer?: ReactNode;

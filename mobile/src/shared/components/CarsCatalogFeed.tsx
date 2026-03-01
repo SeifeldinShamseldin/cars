@@ -5,22 +5,16 @@ import {
   RefreshControl,
   StyleSheet,
   View,
-  type FlatList as FlatListType,
-  type NativeScrollEvent,
-  type NativeSyntheticEvent,
 } from "react-native";
-import { useEffect, useMemo, useRef, useState } from "react";
 import { Image } from "expo-image";
 import { Text } from "react-native-paper";
 
-import type { CatalogCategory, CarSummary } from "../../../shared/api/catalog";
-import { CatalogHeader } from "../../../shared/components/CatalogHeader";
-import { appColors } from "../../../shared/theme/paperTheme";
-import { fontFamilies } from "../../../shared/theme/typography";
+import type { CatalogCategory, CarSummary } from "../api/catalog";
+import { useCarsCatalogFeed } from "../hooks/useCarsCatalogFeed";
+import { appColors } from "../theme/paperTheme";
+import { fontFamilies } from "../theme/typography";
+import { CatalogHeader } from "./CatalogHeader";
 import { CarsHeroScreen } from "./CarsHeroScreen";
-import { usePaginatedCars } from "../../../shared/hooks/useCarCatalog";
-
-const FLOATING_HEADER_TRIGGER = 132;
 
 type CarsCatalogFeedProps = {
   category: CatalogCategory;
@@ -71,117 +65,32 @@ export const CarsCatalogFeed = ({
   onRefreshFeaturedCars,
   onOpenCar,
 }: CarsCatalogFeedProps) => {
-  const [searchText, setSearchText] = useState("");
-  const headerTranslateY = useRef(new Animated.Value(-96)).current;
-  const headerOpacity = useRef(new Animated.Value(0)).current;
-  const lastScrollOffset = useRef(0);
-  const headerHidden = useRef(true);
-  const listRef = useRef<FlatListType<CarSummary>>(null);
-  const hasRestoredScroll = useRef(false);
   const {
-    cars,
+    searchText,
+    setSearchText,
+    clearSearch,
+    headerTranslateY,
+    headerOpacity,
+    listRef,
+    filteredFeaturedCars,
+    filteredSellCars,
+    filteredCars,
     isLoading,
     isLoadingMore,
     isRefreshing,
     hasMore,
     loadMore,
-    refresh,
-  } =
-    usePaginatedCars(category);
-  const normalizedQuery = searchText.trim().toLowerCase();
-  const matchesQuery = (car: CarSummary) =>
-    normalizedQuery.length === 0 ||
-    [
-      car.brand,
-      car.model,
-      car.type,
-      car.description,
-      car.priceLabel ?? "",
-      `${car.year}`,
-    ]
-      .join(" ")
-      .toLowerCase()
-      .includes(normalizedQuery);
-  const filteredFeaturedCars = useMemo(
-    () => featuredCars.filter(matchesQuery),
-    [featuredCars, normalizedQuery],
-  );
-  const filteredSellCars = useMemo(
-    () => sellCars.filter(matchesQuery),
-    [sellCars, normalizedQuery],
-  );
-  const filteredCars = useMemo(
-    () => cars.filter(matchesQuery),
-    [cars, normalizedQuery],
-  );
-
-  useEffect(() => {
-    if (hasRestoredScroll.current || initialScrollOffset <= 0) {
-      return;
-    }
-
-    const restore = requestAnimationFrame(() => {
-      listRef.current?.scrollToOffset({
-        offset: initialScrollOffset,
-        animated: false,
-      });
-      lastScrollOffset.current = initialScrollOffset;
-      hasRestoredScroll.current = true;
-    });
-
-    return () => {
-      cancelAnimationFrame(restore);
-    };
-  }, [initialScrollOffset]);
-
-  const setHeaderVisibility = (hidden: boolean) => {
-    if (headerHidden.current === hidden) {
-      return;
-    }
-
-    headerHidden.current = hidden;
-    Animated.parallel([
-      Animated.timing(headerTranslateY, {
-        toValue: hidden ? -96 : 0,
-        duration: 180,
-        useNativeDriver: true,
-      }),
-      Animated.timing(headerOpacity, {
-        toValue: hidden ? 0 : 1,
-        duration: 140,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  };
-
-  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const nextOffset = Math.max(event.nativeEvent.contentOffset.y, 0);
-    onScrollOffsetChange?.(nextOffset);
-
-    if (!showHeader) {
-      lastScrollOffset.current = nextOffset;
-      return;
-    }
-
-    const delta = nextOffset - lastScrollOffset.current;
-
-    if (nextOffset <= FLOATING_HEADER_TRIGGER) {
-      setHeaderVisibility(true);
-    } else if (delta > 8) {
-      setHeaderVisibility(true);
-    } else if (delta < -8) {
-      setHeaderVisibility(false);
-    }
-
-    lastScrollOffset.current = nextOffset;
-  };
-
-  const handleRefresh = () => {
-    void Promise.all([
-      refresh(),
-      onRefreshFeaturedCars ? onRefreshFeaturedCars() : Promise.resolve(false),
-    ]);
-  };
+    handleScroll,
+    handleRefresh,
+  } = useCarsCatalogFeed({
+    category,
+    featuredCars,
+    sellCars,
+    initialScrollOffset,
+    onScrollOffsetChange,
+    showHeader,
+    onRefreshFeaturedCars,
+  });
 
   return (
     <View style={styles.root}>
@@ -200,7 +109,7 @@ export const CarsCatalogFeed = ({
             searchPlaceholder={searchPlaceholder}
             value={searchText}
             onChangeText={setSearchText}
-            onClear={() => setSearchText("")}
+            onClear={clearSearch}
           />
         </Animated.View>
       ) : null}
@@ -228,7 +137,7 @@ export const CarsCatalogFeed = ({
                 searchPlaceholder={searchPlaceholder}
                 value={searchText}
                 onChangeText={setSearchText}
-                onClear={() => setSearchText("")}
+                onClear={clearSearch}
               />
             ) : null}
             <CarsHeroScreen
