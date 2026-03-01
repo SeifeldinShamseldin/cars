@@ -4,17 +4,17 @@ import { Animated, Easing, StyleSheet, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { Snackbar, PaperProvider } from "react-native-paper";
 
-import { CarNewsHomeScreen } from "./src/features/carnews/CarNewsHomeScreen";
-import type { HubGame } from "./src/features/common/CarsHeroScreen";
+import { CarNewsHomeScreen } from "./src/features/carnews/screens/CarNewsHomeScreen";
+import type { HubGame } from "./src/features/games/types";
 import {
   prefetchCarDetail,
   useFeaturedCars,
-} from "./src/features/common/useCarCatalog";
-import { GameEntryScreen } from "./src/features/games/games/GameEntryScreen";
-import { GamesHubScreen } from "./src/features/games/games/GamesHubScreen";
-import { LaunchScreen } from "./src/features/launch/LaunchScreen";
-import { NameSetupScreen } from "./src/features/profile/NameSetupScreen";
-import { SellCarHomeScreen } from "./src/features/sellcar/SellCarHomeScreen";
+} from "./src/shared/hooks/useCarCatalog";
+import { GameEntryScreen } from "./src/features/games/games/screens/GameEntryScreen";
+import { GamesHubScreen } from "./src/features/games/games/screens/GamesHubScreen";
+import { LaunchScreen } from "./src/features/launch/screens/LaunchScreen";
+import { NameSetupScreen } from "./src/features/profile/screens/NameSetupScreen";
+import { SellCarHomeScreen } from "./src/features/sellcar/screens/SellCarHomeScreen";
 import { socketClient } from "./src/shared/api/socket";
 import {
   BottomNav,
@@ -28,7 +28,7 @@ import {
 import { translate } from "./src/shared/lib/i18n";
 import { useAppStore } from "./src/shared/store/appStore";
 import { paperTheme } from "./src/shared/theme/paperTheme";
-import { ProfileScreen } from "./src/features/profile/ProfileScreen";
+import { ProfileScreen } from "./src/features/profile/screens/ProfileScreen";
 import { MountedTabs } from "./src/app/MountedTabs";
 import { PreRoomStack } from "./src/app/PreRoomStack";
 import { RoomContent } from "./src/app/RoomContent";

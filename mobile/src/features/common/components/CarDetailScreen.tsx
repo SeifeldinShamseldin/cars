@@ -12,10 +12,10 @@ import {
 import { Image } from "expo-image";
 import { Text } from "react-native-paper";
 
-import { useCarDetail } from "./useCarCatalog";
-import { BackArrow } from "../../shared/components/BackArrow";
-import { appColors } from "../../shared/theme/paperTheme";
-import { fontFamilies } from "../../shared/theme/typography";
+import { useCarDetail } from "../../../shared/hooks/useCarCatalog";
+import { BackArrow } from "../../../shared/components/BackArrow";
+import { appColors } from "../../../shared/theme/paperTheme";
+import { fontFamilies } from "../../../shared/theme/typography";
 
 type CarDetailScreenProps = {
   carId: string;

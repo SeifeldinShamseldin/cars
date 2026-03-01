@@ -13,12 +13,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Image } from "expo-image";
 import { Text } from "react-native-paper";
 
-import type { CatalogCategory, CarSummary } from "../../shared/api/catalog";
-import { CatalogHeader } from "../../shared/components/CatalogHeader";
-import { appColors } from "../../shared/theme/paperTheme";
-import { fontFamilies } from "../../shared/theme/typography";
+import type { CatalogCategory, CarSummary } from "../../../shared/api/catalog";
+import { CatalogHeader } from "../../../shared/components/CatalogHeader";
+import { appColors } from "../../../shared/theme/paperTheme";
+import { fontFamilies } from "../../../shared/theme/typography";
 import { CarsHeroScreen } from "./CarsHeroScreen";
-import { usePaginatedCars } from "./useCarCatalog";
+import { usePaginatedCars } from "../../../shared/hooks/useCarCatalog";
 
 const FLOATING_HEADER_TRIGGER = 132;
 

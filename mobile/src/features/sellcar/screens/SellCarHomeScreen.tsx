@@ -1,5 +1,5 @@
-import { CarsCatalogFeed } from "../common/CarsCatalogFeed";
-import type { CarSummary } from "../../shared/api/catalog";
+import { CarsCatalogFeed } from "../../common/components/CarsCatalogFeed";
+import type { CarSummary } from "../../../shared/api/catalog";
 
 type SellCarHomeScreenProps = {
   featuredCars: CarSummary[];

@@ -9,12 +9,12 @@ import {
 } from "react-native";
 import { Text } from "react-native-paper";
 
-import { appColors } from "../../shared/theme/paperTheme";
-import { fontFamilies } from "../../shared/theme/typography";
+import { appColors } from "../../../shared/theme/paperTheme";
+import { fontFamilies } from "../../../shared/theme/typography";
 
-const keyImage = require("../../../assets/images/porsche-992-key.png");
-const topCarImage = require("../../../assets/images/porsche-911-top.png");
-const launchLogo = require("../../../assets/images/launch-logo.png");
+const keyImage = require("../../../../assets/images/porsche-992-key.png");
+const topCarImage = require("../../../../assets/images/porsche-911-top.png");
+const launchLogo = require("../../../../assets/images/launch-logo.png");
 
 type LaunchScreenProps = {
   headline: string;

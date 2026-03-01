@@ -1,8 +1,8 @@
 import { StyleSheet, View } from "react-native";
 import { Button, Card, HelperText, Text, TextInput } from "react-native-paper";
 
-import { appColors } from "../../shared/theme/paperTheme";
-import { fontFamilies } from "../../shared/theme/typography";
+import { appColors } from "../../../shared/theme/paperTheme";
+import { fontFamilies } from "../../../shared/theme/typography";
 
 type NameSetupScreenProps = {
   eyebrow: string;

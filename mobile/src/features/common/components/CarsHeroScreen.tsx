@@ -12,11 +12,10 @@ import {
 import { Image } from "expo-image";
 import { Text } from "react-native-paper";
 
-import type { CarSummary } from "../../shared/api/catalog";
-import { appColors } from "../../shared/theme/paperTheme";
-import { fontFamilies } from "../../shared/theme/typography";
+import type { CarSummary } from "../../../shared/api/catalog";
+import { appColors } from "../../../shared/theme/paperTheme";
+import { fontFamilies } from "../../../shared/theme/typography";
 
-export type HubGame = "GUESS_CAR" | "IMPOSTER";
 export type CarPanel = "FEATURED" | "SELL";
 
 const PAGINATION_SLOT = 24;

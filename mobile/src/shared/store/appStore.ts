@@ -2,118 +2,29 @@ import { create } from "zustand";
 
 import type {
   ErrorPayload,
-  GameType,
   GameEndedPayload,
   GameStartedPayload,
-  GuessCarRoundEndedResults,
-  GuessCarRoundStartedPayload,
-  ImposterRoundEndedResults,
-  ImposterRoundStartedPayload,
-  RoomStatus,
   RoomClosedPayload,
   RoomCreatedEvt,
   RoomJoinedEvt,
   RoomStateEvt,
-  RoomStatePublic,
   RoomUpdatedEvt,
   RoundEndedPayload,
   RoundStartedPayload,
 } from "../../../shared/types/domain";
-
-type RoomSlice = {
-  roomState?: RoomStatePublic;
-  roomCode?: string;
-  playerToken?: string;
-  hostKey?: string;
-  gameType: GameType;
-  status: RoomStatus;
-  version: number;
-  roundEndsAt?: number;
-  roomClosesAt?: number;
-  lastError?: ErrorPayload;
-  isConnected: boolean;
-};
-
-type GuessCarSlice = {
-  currentGuessPayload?: GuessCarRoundStartedPayload;
-  selectedOptionId?: string;
-  guessDisabled: boolean;
-  guessResults?: GuessCarRoundEndedResults;
-};
-
-type ImposterSlice = {
-  currentImposterPayload?: ImposterRoundStartedPayload;
-  imposterResults?: ImposterRoundEndedResults;
-};
-
-type AppStore = RoomSlice &
-  GuessCarSlice &
-  ImposterSlice & {
-    setConnection: (isConnected: boolean) => void;
-    handleRoomCreated: (payload: RoomCreatedEvt) => void;
-    handleRoomJoined: (payload: RoomJoinedEvt) => void;
-    handleRoomState: (payload: RoomStateEvt) => void;
-    handleRoomUpdated: (payload: RoomUpdatedEvt) => void;
-    handleGameStarted: (payload: GameStartedPayload) => void;
-    handleRoundStarted: (payload: RoundStartedPayload) => void;
-    handleRoundEnded: (payload: RoundEndedPayload) => void;
-    handleGameEnded: (payload: GameEndedPayload) => void;
-    handleRoomClosed: (payload: RoomClosedPayload) => void;
-    handleError: (payload: ErrorPayload) => void;
-    dismissError: () => void;
-    setSelectedOption: (optionId: string) => void;
-    markGuessSubmitted: () => void;
-    resetSession: () => void;
-  };
-
-const applyRoomState = (
-  state: AppStore,
-  roomState: RoomStatePublic,
-): Partial<AppStore> => ({
-  roomState,
-  roomCode: roomState.roomCode,
-  gameType: roomState.gameType,
-  status: roomState.status,
-  version: roomState.version,
-  roundEndsAt: roomState.roundEndsAt,
-  roomClosesAt:
-    roomState.status === "CLOSING" ? state.roomClosesAt : undefined,
-});
-
-const createFallbackRoomState = (
-  roomCode: string,
-  gameType: GameType,
-  round: number,
-): RoomStatePublic => ({
-  roomCode,
-  hostId: "",
-  players: [],
-  gameType,
-  status: "PLAYING",
-  round,
-  version: 0,
-  createdAt: Date.now(),
-  updatedAt: Date.now(),
-});
+import { initialGuessCarSlice } from "./slices/guessCarSlice";
+import { initialImposterSlice } from "./slices/imposterSlice";
+import {
+  applyRoomState,
+  createFallbackRoomState,
+  initialRoomSlice,
+} from "./slices/roomSlice";
+import type { AppStore } from "./types";
 
 export const useAppStore = create<AppStore>((set) => ({
-  roomState: undefined,
-  roomCode: undefined,
-  playerToken: undefined,
-  hostKey: undefined,
-  gameType: "NONE",
-  status: "LOBBY",
-  version: 0,
-  roundEndsAt: undefined,
-  roomClosesAt: undefined,
-  lastError: undefined,
-  isConnected: false,
-  currentGuessPayload: undefined,
-  selectedOptionId: undefined,
-  guessDisabled: false,
-  guessResults: undefined,
-  currentImposterPayload: undefined,
-  imposterResults: undefined,
+  ...initialRoomSlice,
+  ...initialGuessCarSlice,
+  ...initialImposterSlice,
 
   setConnection: (isConnected) => set({ isConnected }),
 
@@ -237,21 +148,9 @@ export const useAppStore = create<AppStore>((set) => ({
 
   handleRoomClosed: () =>
     set({
-      roomState: undefined,
-      roomCode: undefined,
-      playerToken: undefined,
-      hostKey: undefined,
-      gameType: "NONE",
-      status: "LOBBY",
-      version: 0,
-      roundEndsAt: undefined,
-      roomClosesAt: undefined,
-      currentGuessPayload: undefined,
-      selectedOptionId: undefined,
-      guessDisabled: false,
-      guessResults: undefined,
-      currentImposterPayload: undefined,
-      imposterResults: undefined,
+      ...initialRoomSlice,
+      ...initialGuessCarSlice,
+      ...initialImposterSlice,
       lastError: {
         code: "ROOM_CLOSED",
         message: "The room has closed.",
@@ -272,20 +171,8 @@ export const useAppStore = create<AppStore>((set) => ({
 
   resetSession: () =>
     set({
-      roomState: undefined,
-      roomCode: undefined,
-      playerToken: undefined,
-      hostKey: undefined,
-      gameType: "NONE",
-      status: "LOBBY",
-      version: 0,
-      roundEndsAt: undefined,
-      roomClosesAt: undefined,
-      currentGuessPayload: undefined,
-      selectedOptionId: undefined,
-      guessDisabled: false,
-      guessResults: undefined,
-      currentImposterPayload: undefined,
-      imposterResults: undefined,
+      ...initialRoomSlice,
+      ...initialGuessCarSlice,
+      ...initialImposterSlice,
     }),
 }));

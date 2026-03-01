@@ -3,7 +3,7 @@ import { Text } from "react-native-paper";
 
 import { appColors } from "../theme/paperTheme";
 import { fontFamilies } from "../theme/typography";
-import { formatCountdown, useCountdown } from "../lib/useCountdown";
+import { formatCountdown, useCountdown } from "../hooks/useCountdown";
 
 type CountdownPillProps = {
   targetTime?: number;

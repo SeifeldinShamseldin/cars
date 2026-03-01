@@ -1,9 +1,9 @@
 import { StyleSheet, View } from "react-native";
 import { Button, HelperText, Text, TextInput } from "react-native-paper";
 
-import { BackArrow } from "../../../shared/components/BackArrow";
-import { appColors } from "../../../shared/theme/paperTheme";
-import { fontFamilies } from "../../../shared/theme/typography";
+import { BackArrow } from "../../../../shared/components/BackArrow";
+import { appColors } from "../../../../shared/theme/paperTheme";
+import { fontFamilies } from "../../../../shared/theme/typography";
 
 type GameEntryScreenProps = {
   eyebrow: string;

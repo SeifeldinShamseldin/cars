@@ -1,9 +1,9 @@
 import { Pressable, StyleSheet, View } from "react-native";
 import { Card, Text } from "react-native-paper";
 
-import { appColors } from "../../../shared/theme/paperTheme";
-import { fontFamilies } from "../../../shared/theme/typography";
-import type { HubGame } from "../../common/CarsHeroScreen";
+import { appColors } from "../../../../shared/theme/paperTheme";
+import { fontFamilies } from "../../../../shared/theme/typography";
+import type { HubGame } from "../../types";
 
 type GamesHubScreenProps = {
   title: string;
