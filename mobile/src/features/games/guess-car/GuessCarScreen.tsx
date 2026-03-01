@@ -1,12 +1,12 @@
 import { StyleSheet, View } from "react-native";
 import { Button, Card, Text } from "react-native-paper";
-import { Image } from "expo-image";
 
 import type {
   GuessCarRoundEndedResults,
   GuessCarRoundStartedPayload,
 } from "../../../../shared/types/domain";
 import { CountdownPill } from "../../../shared/components/CountdownPill";
+import { ResponsiveImage } from "../../../shared/components/ResponsiveImage";
 import { appColors } from "../../../shared/theme/paperTheme";
 import { fontFamilies } from "../../../shared/theme/typography";
 
@@ -165,7 +165,12 @@ export const GuessCarScreen = ({
               </Text>
             </View>
           ) : (
-            <Image source={payload.partImageUrl} style={styles.partImage} contentFit="cover" />
+            <ResponsiveImage
+              source={payload.partImageUrl}
+              height={220}
+              borderRadius={18}
+              backgroundColor={appColors.surfaceAlt}
+            />
           )}
         </Card.Content>
       </Card>
@@ -250,11 +255,6 @@ const styles = StyleSheet.create({
     color: appColors.inkSoft,
     fontSize: 17,
     lineHeight: 22,
-  },
-  partImage: {
-    width: "100%",
-    height: 220,
-    borderRadius: 18,
   },
   sectionTitle: {
     color: appColors.ink,

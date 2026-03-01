@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
+  Easing,
   NativeScrollEvent,
   NativeSyntheticEvent,
   Pressable,
@@ -9,12 +10,13 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
-import { Image } from "expo-image";
 import { Text } from "react-native-paper";
 
 import type { CarSummary } from "../api/catalog";
+import { useLoopingCarousel } from "../hooks/useLoopingCarousel";
 import { appColors } from "../theme/paperTheme";
 import { fontFamilies } from "../theme/typography";
+import { ResponsiveImage } from "./ResponsiveImage";
 
 export type CarPanel = "FEATURED" | "SELL";
 
@@ -58,23 +60,17 @@ export const CarsHeroScreen = ({
 }: CarsHeroScreenProps) => {
   const { width } = useWindowDimensions();
   const [panelState, setPanelState] = useState<CarPanel>(fixedPanel ?? "SELL");
-  const [featuredIndex, setFeaturedIndex] = useState(0);
-  const [sellIndex, setSellIndex] = useState(0);
-  const featuredScrollRef = useRef<ScrollView>(null);
   const tabIndicator = useRef(new Animated.Value(0)).current;
-  const paginationIndicator = useRef(new Animated.Value(0)).current;
   const featuredWidth = Math.max(width - SCREEN_SHELL_HORIZONTAL_PADDING, 280);
   const slideStep = featuredWidth + CAROUSEL_GAP;
   const activePanel = fixedPanel ?? panelState;
   const activeCars = activePanel === "FEATURED" ? featuredCars : sellCars;
-  const activeIndex = activePanel === "FEATURED" ? featuredIndex : sellIndex;
-  const carouselCars = useMemo(() => {
-    if (activeCars.length <= 1) {
-      return activeCars;
-    }
-
-    return [...activeCars, ...activeCars, ...activeCars];
-  }, [activeCars]);
+  const { scrollRef, activeIndex, carouselItems, paginationTranslateX, onScroll, handleMomentumScrollEnd } =
+    useLoopingCarousel({
+      items: activeCars,
+      slideStep,
+      paginationStep: PAGINATION_SLOT + PAGINATION_GAP,
+    });
 
   useEffect(() => {
     if (fixedPanel) {
@@ -83,63 +79,13 @@ export const CarsHeroScreen = ({
   }, [fixedPanel]);
 
   useEffect(() => {
-    if (activeCars.length <= 1) {
-      return;
-    }
-
-    const targetOffset = slideStep * activeCars.length;
-    requestAnimationFrame(() => {
-      featuredScrollRef.current?.scrollTo({ x: targetOffset, animated: false });
-    });
-  }, [activeCars.length, activePanel, slideStep]);
-
-  useEffect(() => {
-    Animated.spring(tabIndicator, {
+    Animated.timing(tabIndicator, {
       toValue: activePanel === "SELL" ? 0 : 1,
+      duration: 120,
       useNativeDriver: true,
-      bounciness: 0,
-      speed: 16,
+      easing: Easing.out(Easing.cubic),
     }).start();
   }, [activePanel, tabIndicator]);
-
-  useEffect(() => {
-    Animated.spring(paginationIndicator, {
-      toValue: activeIndex * (PAGINATION_SLOT + PAGINATION_GAP),
-      useNativeDriver: true,
-      bounciness: 0,
-      speed: 16,
-    }).start();
-  }, [activeIndex, paginationIndicator]);
-
-  const handleFeaturedScrollEnd = (
-    event: NativeSyntheticEvent<NativeScrollEvent>,
-  ) => {
-    const rawIndex = Math.round(event.nativeEvent.contentOffset.x / slideStep);
-
-    if (activeCars.length <= 1) {
-      if (activePanel === "FEATURED") {
-        setFeaturedIndex(0);
-      } else {
-        setSellIndex(0);
-      }
-      return;
-    }
-
-    const normalizedIndex =
-      ((rawIndex % activeCars.length) + activeCars.length) % activeCars.length;
-    const loopBaseIndex = activeCars.length + normalizedIndex;
-    const loopOffset = loopBaseIndex * slideStep;
-
-    if (rawIndex !== loopBaseIndex) {
-      featuredScrollRef.current?.scrollTo({ x: loopOffset, animated: false });
-    }
-
-    if (activePanel === "FEATURED") {
-      setFeaturedIndex(normalizedIndex);
-    } else {
-      setSellIndex(normalizedIndex);
-    }
-  };
 
   return (
     <View style={styles.featuredCard}>
@@ -206,17 +152,20 @@ export const CarsHeroScreen = ({
           </View>
         ) : (
           <>
-            <ScrollView
-              ref={featuredScrollRef}
+            <Animated.ScrollView
+              ref={scrollRef}
               horizontal
               showsHorizontalScrollIndicator={false}
               snapToInterval={slideStep}
-              decelerationRate="fast"
+              decelerationRate={0.985}
               disableIntervalMomentum
+              snapToAlignment="start"
               contentContainerStyle={styles.featuredCarouselContent}
-              onMomentumScrollEnd={handleFeaturedScrollEnd}
+              onScroll={onScroll}
+              scrollEventThrottle={16}
+              onMomentumScrollEnd={handleMomentumScrollEnd}
             >
-              {carouselCars.map((featuredCar, index) => (
+              {carouselItems.map((featuredCar, index) => (
                 <Pressable
                   key={`${featuredCar.id}-${index}`}
                   onPress={() => onOpenCar(featuredCar.id)}
@@ -224,7 +173,7 @@ export const CarsHeroScreen = ({
                     styles.featuredSlide,
                     {
                       width: featuredWidth,
-                      marginRight: index === carouselCars.length - 1 ? 0 : CAROUSEL_GAP,
+                      marginRight: index === carouselItems.length - 1 ? 0 : CAROUSEL_GAP,
                     },
                   ]}
                 >
@@ -236,10 +185,9 @@ export const CarsHeroScreen = ({
                   </View>
                   <View style={styles.featuredImageWrap}>
                     <Text style={styles.featuredBrandBackdrop}>{featuredCar.brand}</Text>
-                    <Image
+                    <ResponsiveImage
                       source={featuredCar.imageUrl}
-                      style={styles.featuredImage}
-                      contentFit="contain"
+                      height={220}
                     />
                     <View style={styles.featuredModelBlock}>
                       <Text style={styles.featuredModel}>{featuredCar.model}</Text>
@@ -265,7 +213,7 @@ export const CarsHeroScreen = ({
                   </View>
                 </Pressable>
               ))}
-            </ScrollView>
+            </Animated.ScrollView>
 
             {activeCars.length > 1 ? (
               <View style={styles.paginationWrap}>
@@ -274,7 +222,7 @@ export const CarsHeroScreen = ({
                     style={[
                       styles.paginationIndicator,
                       {
-                        transform: [{ translateX: paginationIndicator }],
+                        transform: [{ translateX: paginationTranslateX }],
                       },
                     ]}
                   />
@@ -419,10 +367,6 @@ const styles = StyleSheet.create({
     fontSize: 62,
     lineHeight: 62,
     textTransform: "uppercase",
-  },
-  featuredImage: {
-    width: "100%",
-    height: 220,
   },
   featuredModelBlock: {
     alignSelf: "stretch",

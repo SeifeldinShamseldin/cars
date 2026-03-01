@@ -1,12 +1,11 @@
 import { StyleSheet } from "react-native";
 import { Card, Text } from "react-native-paper";
-import { Image } from "expo-image";
-
 import type {
   ImposterRoundEndedResults,
   ImposterRoundStartedPayload,
 } from "../../../../shared/types/domain";
 import { CountdownPill } from "../../../shared/components/CountdownPill";
+import { ResponsiveImage } from "../../../shared/components/ResponsiveImage";
 import { appColors } from "../../../shared/theme/paperTheme";
 import { fontFamilies } from "../../../shared/theme/typography";
 
@@ -49,7 +48,7 @@ export const ImposterScreen = ({
         <CountdownPill targetTime={roundEndsAt} label={timeLeftLabel} />
         {payload ? (
           <>
-            <Image source={payload.imageUrl} style={styles.image} contentFit="cover" />
+            <ResponsiveImage source={payload.imageUrl} height={230} borderRadius={18} />
             <Text variant="bodyLarge" style={styles.prompt}>
               {payload.prompt}
             </Text>
@@ -71,11 +70,11 @@ export const ImposterScreen = ({
           <Text variant="bodyMedium" style={styles.metaText}>
             {normalImageLabel}
           </Text>
-          <Image source={results.normalCarImageUrl} style={styles.image} contentFit="cover" />
+          <ResponsiveImage source={results.normalCarImageUrl} height={230} borderRadius={18} />
           <Text variant="bodyMedium" style={styles.metaText}>
             {imposterImageLabel}
           </Text>
-          <Image source={results.imposterCarImageUrl} style={styles.image} contentFit="cover" />
+          <ResponsiveImage source={results.imposterCarImageUrl} height={230} borderRadius={18} />
           {roomClosesAt ? (
             <CountdownPill targetTime={roomClosesAt} label={roomClosesLabel} />
           ) : null}
@@ -133,11 +132,6 @@ const styles = StyleSheet.create({
   prompt: {
     color: appColors.inkSoft,
     lineHeight: 22,
-  },
-  image: {
-    width: "100%",
-    height: 230,
-    borderRadius: 18,
   },
   metaText: {
     color: appColors.inkSoft,

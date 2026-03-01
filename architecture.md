@@ -66,27 +66,58 @@
 mobile/src/
   app/
     hooks/
+      useAppScreenProps.ts
+      useLaunchTransition.ts
+      useOverlayTransition.ts
+      usePreRoomFlow.ts
+      useProfileState.ts
+      useSocketLifecycle.ts
     MountedTabs.tsx
     PreRoomStack.tsx
     RoomContent.tsx
   features/
     launch/
+      screens/
     sellcar/
+      screens/
     carnews/
+      screens/
     games/
       games/
+        screens/
       lobby/
       guess-car/
       imposter/
     profile/
+      screens/
   shared/
     api/
     components/
+      BackArrow.tsx
+      BottomNav.tsx
+      CarDetailScreen.tsx
+      CarsCatalogFeed.tsx
+      CarsHeroScreen.tsx
+      CatalogHeader.tsx
+      CountdownPill.tsx
+      ResponsiveImage.tsx
+      ScreenShell.tsx
+      SwipeBackOverlay.tsx
     hooks/
+      useCarCatalog.ts
+      useCarsCatalogFeed.ts
+      useCountdown.ts
+      useLoopingCarousel.ts
     lib/
     store/
+      actions.ts
+      appStore.ts
       selectors.ts
       slices/
+        guessCarSlice.ts
+        imposterSlice.ts
+        roomSlice.ts
+      types.ts
     theme/
 ```
 
@@ -123,9 +154,13 @@ mobile/src/
 
 - `App.tsx` remains the app entrypoint, but large render layers are split into `mobile/src/app/*`.
 - App-side orchestration hooks live in `mobile/src/app/hooks/*`.
+- Screen prop wiring is centralized in `mobile/src/app/hooks/useAppScreenProps.ts` so `App.tsx` mainly composes flows.
 - Shared catalog behavior lives in `mobile/src/shared/hooks/*`.
 - Shared UI primitives and reusable catalog UI live in `mobile/src/shared/components/*` and are intended to stay dumb.
+- Image rendering is centralized in `mobile/src/shared/components/ResponsiveImage.tsx`.
+- Looping carousel behavior is centralized in `mobile/src/shared/hooks/useLoopingCarousel.ts`.
 - Zustand access is split between:
+  - `mobile/src/shared/store/actions.ts`
   - `mobile/src/shared/store/appStore.ts`
   - `mobile/src/shared/store/slices/*`
   - `mobile/src/shared/store/selectors.ts`
@@ -145,10 +180,27 @@ mobile/src/
 - Automatic stale refresh runs in background after `2 min`
   - only for catalog data
   - does not clear the current UI first
+- Hero car sections and detail galleries use a looping carousel with swipe-follow indicators.
 - Refresh replaces page 1 for the relevant section so:
   - removed items disappear
   - changed items update
   - new items appear
+
+## Backend Status
+
+- Backend is still a single deployable modular Node service.
+- Current backend structure:
+  - `server/src/index.ts` for HTTP/bootstrap
+  - `server/src/core/socket/registerHandlers.ts` for Socket.IO wiring
+  - `server/src/core/rooms/*` for room state ownership
+  - `server/src/core/games/*` for game orchestration
+  - `server/src/data/demoCars.ts` for demo catalog/question data
+- Planned next backend cleanup direction is a modular monolith split into:
+  - `catalog`
+  - `game`
+  - `room`
+  - thin HTTP bootstrap helpers
+- No microservice split is planned yet.
 
 ## Game Rules
 

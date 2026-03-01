@@ -1,5 +1,6 @@
 import { useState } from "react";
 import {
+  Animated,
   Modal,
   NativeScrollEvent,
   NativeSyntheticEvent,
@@ -9,13 +10,14 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
-import { Image } from "expo-image";
 import { Text } from "react-native-paper";
 
 import { useCarDetail } from "../hooks/useCarCatalog";
+import { useLoopingCarousel } from "../hooks/useLoopingCarousel";
 import { appColors } from "../theme/paperTheme";
 import { fontFamilies } from "../theme/typography";
 import { BackArrow } from "./BackArrow";
+import { ResponsiveImage } from "./ResponsiveImage";
 
 type CarDetailScreenProps = {
   carId: string;
@@ -36,24 +38,32 @@ export const CarDetailScreen = ({
   yearLabel,
   onBack,
 }: CarDetailScreenProps) => {
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
   const { car, isLoading, hasError } = useCarDetail(carId);
-  const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const [activeModalImageIndex, setActiveModalImageIndex] = useState(0);
   const [isGalleryOpen, setIsGalleryOpen] = useState(false);
-  const slideWidth = Math.max(width - 40, 280);
-
-  const handleGalleryEnd = (
-    event: NativeSyntheticEvent<NativeScrollEvent>,
-  ) => {
-    if (!car) {
-      return;
-    }
-
-    const nextIndex = Math.round(event.nativeEvent.contentOffset.x / slideWidth);
-    setActiveImageIndex(
-      Math.max(0, Math.min(car.galleryImageUrls.length - 1, nextIndex)),
-    );
-  };
+  const screenHorizontalPadding = 40;
+  const heroCardHorizontalPadding = 36;
+  const slideWidth = Math.max(
+    width - screenHorizontalPadding - heroCardHorizontalPadding,
+    240,
+  );
+  const galleryGap = 0;
+  const galleryStep = slideWidth + galleryGap;
+  const galleryHeight = Math.min(Math.max(width * 0.74, 280), height * 0.48);
+  const modalImageHeight = height * 0.76;
+  const {
+    scrollRef,
+    activeIndex,
+    carouselItems,
+    paginationTranslateX,
+    onScroll,
+    handleMomentumScrollEnd,
+  } = useLoopingCarousel({
+    items: car?.galleryImageUrls ?? [],
+    slideStep: galleryStep,
+    paginationStep: 30,
+  });
 
   const handleModalGalleryEnd = (
     event: NativeSyntheticEvent<NativeScrollEvent>,
@@ -63,7 +73,7 @@ export const CarDetailScreen = ({
     }
 
     const nextIndex = Math.round(event.nativeEvent.contentOffset.x / width);
-    setActiveImageIndex(
+    setActiveModalImageIndex(
       Math.max(0, Math.min(car.galleryImageUrls.length - 1, nextIndex)),
     );
   };
@@ -108,51 +118,68 @@ export const CarDetailScreen = ({
             </View>
           </View>
 
-          <ScrollView
+          <Animated.ScrollView
+            ref={scrollRef}
             horizontal
             showsHorizontalScrollIndicator={false}
-            snapToInterval={slideWidth}
-            snapToAlignment="center"
-            decelerationRate="fast"
+            snapToInterval={galleryStep}
+            snapToAlignment="start"
+            decelerationRate={0.985}
             disableIntervalMomentum
-            onMomentumScrollEnd={handleGalleryEnd}
+            onScroll={onScroll}
+            scrollEventThrottle={16}
+            onMomentumScrollEnd={handleMomentumScrollEnd}
             contentContainerStyle={styles.galleryContent}
           >
-            {car.galleryImageUrls.map((imageUrl, index) => (
+            {carouselItems.map((imageUrl, index) => (
               <Pressable
-                key={`${car.id}-${index}`}
+                key={`${car.id}-${imageUrl}-${index}`}
                 onPress={() => {
-                  setActiveImageIndex(index);
+                  const normalizedIndex =
+                    ((index % car.galleryImageUrls.length) + car.galleryImageUrls.length) %
+                    car.galleryImageUrls.length;
+                  setActiveModalImageIndex(normalizedIndex);
                   setIsGalleryOpen(true);
                 }}
                 style={[
                   styles.imageSlide,
                   {
                     width: slideWidth,
-                    marginRight:
-                      index === car.galleryImageUrls.length - 1 ? 0 : 16,
+                    marginRight: 0,
                   },
                 ]}
               >
-                <Image
+                <ResponsiveImage
                   source={imageUrl}
-                  style={styles.image}
-                  contentFit="contain"
+                  height={galleryHeight}
                 />
               </Pressable>
             ))}
-          </ScrollView>
+          </Animated.ScrollView>
 
           <View style={styles.galleryDots}>
-            {car.galleryImageUrls.map((_, index) => (
+            {car.galleryImageUrls.length > 1 ? (
               <View
-                key={`${car.id}-dot-${index}`}
                 style={[
-                  styles.galleryDot,
-                  index === activeImageIndex && styles.galleryDotActive,
+                  styles.galleryDotsTrack,
+                  {
+                    width: car.galleryImageUrls.length * 22 + (car.galleryImageUrls.length - 1) * 8,
+                  },
                 ]}
-              />
-            ))}
+              >
+                <Animated.View
+                  style={[
+                    styles.galleryDotActive,
+                    { transform: [{ translateX: paginationTranslateX }] },
+                  ]}
+                />
+                {car.galleryImageUrls.map((_, index) => (
+                  <View key={`${car.id}-dot-${index}`} style={styles.galleryDot} />
+                ))}
+              </View>
+            ) : (
+              <View style={styles.galleryDotSingle} />
+            )}
           </View>
 
           <View style={styles.heroFooter}>
@@ -242,7 +269,7 @@ export const CarDetailScreen = ({
             showsHorizontalScrollIndicator={false}
             pagingEnabled
             snapToAlignment="center"
-            contentOffset={{ x: activeImageIndex * width, y: 0 }}
+            contentOffset={{ x: activeModalImageIndex * width, y: 0 }}
             onMomentumScrollEnd={handleModalGalleryEnd}
           >
             {car.galleryImageUrls.map((imageUrl, index) => (
@@ -250,7 +277,10 @@ export const CarDetailScreen = ({
                 key={`${car.id}-modal-${index}`}
                 style={[styles.modalSlide, { width }]}
               >
-                <Image source={imageUrl} style={styles.modalImage} contentFit="contain" />
+                <ResponsiveImage
+                  source={imageUrl}
+                  height={modalImageHeight}
+                />
               </View>
             ))}
           </ScrollView>
@@ -356,29 +386,41 @@ const styles = StyleSheet.create({
   imageSlide: {
     alignItems: "center",
     justifyContent: "center",
-  },
-  image: {
-    width: "100%",
-    height: 260,
+    overflow: "hidden",
   },
   galleryDots: {
     marginTop: 10,
     marginBottom: 12,
-    flexDirection: "row",
     justifyContent: "center",
+    alignItems: "center",
+  },
+  galleryDotsTrack: {
+    height: 8,
+    flexDirection: "row",
+    alignItems: "center",
     gap: 8,
   },
   galleryDot: {
-    width: 8,
+    width: 22,
     height: 8,
     borderRadius: 999,
     backgroundColor: appColors.inkSoft,
     opacity: 0.35,
   },
   galleryDotActive: {
+    position: "absolute",
+    left: 0,
     width: 22,
+    height: 8,
+    borderRadius: 999,
     backgroundColor: appColors.primary,
     opacity: 1,
+  },
+  galleryDotSingle: {
+    width: 22,
+    height: 8,
+    borderRadius: 999,
+    backgroundColor: appColors.primary,
   },
   heroFooter: {
     gap: 6,
@@ -454,9 +496,5 @@ const styles = StyleSheet.create({
   modalSlide: {
     alignItems: "center",
     justifyContent: "center",
-  },
-  modalImage: {
-    width: "100%",
-    height: "70%",
   },
 });

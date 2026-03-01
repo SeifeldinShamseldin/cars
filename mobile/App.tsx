@@ -13,12 +13,12 @@ import { SellCarHomeScreen } from "./src/features/sellcar/screens/SellCarHomeScr
 import { socketClient } from "./src/shared/api/socket";
 import { BottomNav } from "./src/shared/components/BottomNav";
 import { ScreenShell } from "./src/shared/components/ScreenShell";
-import { translate } from "./src/shared/lib/i18n";
 import { paperTheme } from "./src/shared/theme/paperTheme";
 import { ProfileScreen } from "./src/features/profile/screens/ProfileScreen";
 import { MountedTabs } from "./src/app/MountedTabs";
 import { PreRoomStack } from "./src/app/PreRoomStack";
 import { RoomContent } from "./src/app/RoomContent";
+import { useAppScreenProps } from "./src/app/hooks/useAppScreenProps";
 import { useLaunchTransition } from "./src/app/hooks/useLaunchTransition";
 import { useOverlayTransition } from "./src/app/hooks/useOverlayTransition";
 import { useProfileState } from "./src/app/hooks/useProfileState";
@@ -112,6 +112,30 @@ export default function App() {
   });
   const modeTransition = useOverlayTransition(isModeDetailScreen);
   const detailTransition = useOverlayTransition(Boolean(selectedCarId));
+  const screenProps = useAppScreenProps({
+    profileName,
+    profileDraft,
+    isSavingProfile,
+    sellScrollOffset,
+    updatesScrollOffset,
+    isFeaturedCarsRefreshing,
+    activeMode,
+    roomState,
+    setProfileDraft,
+    saveProfileName,
+    setSellScrollOffset,
+    setUpdatesScrollOffset,
+    setJoinRoomCode,
+    createRoomForGame,
+    joinRoomForGame,
+    closeModeDetail: () => {
+      modeTransition.close(() => {
+        setActiveMode(null);
+      });
+    },
+    openCarDetail,
+    refreshFeaturedCars,
+  });
 
   useSocketLifecycle({
     setConnection,
@@ -139,151 +163,25 @@ export default function App() {
     });
   };
 
-  const closeModeDetail = () => {
-    modeTransition.close(() => {
-      setActiveMode(null);
-    });
-  };
-
   const dismissModeDetailAfterSwipe = () => {
     modeTransition.dismiss(() => {
       setActiveMode(null);
     });
   };
-
-  const t = (
-    key: Parameters<typeof translate>[1],
-    params?: Record<string, string | number>,
-  ) => translate("en", key, params);
-  const homeCards = [
-    {
-      id: "GUESS_CAR" as const,
-      title: t("home.carGuess"),
-      description: t("home.carGuessDescription"),
-    },
-    {
-      id: "IMPOSTER" as const,
-      title: t("home.imposter"),
-      description: t("home.imposterDescription"),
-    },
-  ];
+  const roomLabels = roomState ? screenProps.getRoomLabels() : null;
+  const modeEntryProps = screenProps.getModeEntryProps(joinRoomCode);
 
   const footer =
     !roomState && profileName && !isModeDetailScreen ? (
       <BottomNav
         activeTab={activeTab}
-        sellLabel={t("common.sellCar")}
-        updatesLabel={t("common.carUpdates")}
-        gamesLabel={t("common.games")}
-        profileLabel={t("common.profile")}
+        sellLabel={screenProps.navLabels.sellLabel}
+        updatesLabel={screenProps.navLabels.updatesLabel}
+        gamesLabel={screenProps.navLabels.gamesLabel}
+        profileLabel={screenProps.navLabels.profileLabel}
         onTabChange={setActiveTab}
       />
     ) : undefined;
-
-  const renderSellHub = () => (
-    <SellCarHomeScreen
-      featuredCars={featuredCars}
-      sellCars={sellCars}
-      isLoading={isFeaturedCarsLoading}
-      hasError={hasFeaturedCarsError}
-      featuredLabel={t("home.featuredLabel")}
-      sellLabel={t("home.sellLabel")}
-      loadingLabel={t("home.featuredLoading")}
-      errorLabel={t("home.featuredError")}
-      typeLabel={t("home.typeLabel")}
-      topSpeedLabel={t("home.topSpeedLabel")}
-      torqueLabel={t("home.torqueLabel")}
-      yearLabel={t("home.yearLabel")}
-      searchPlaceholder={t("catalog.searchPlaceholder")}
-      initialScrollOffset={sellScrollOffset}
-      onScrollOffsetChange={setSellScrollOffset}
-      isRefreshing={isFeaturedCarsRefreshing}
-      onRefresh={refreshFeaturedCars}
-      onOpenCar={openCarDetail}
-    />
-  );
-
-  const renderUpdatesHub = () => (
-    <CarNewsHomeScreen
-      featuredCars={featuredCars}
-      sellCars={sellCars}
-      isLoading={isFeaturedCarsLoading}
-      hasError={hasFeaturedCarsError}
-      featuredLabel={t("home.featuredLabel")}
-      sellLabel={t("home.sellLabel")}
-      loadingLabel={t("home.featuredLoading")}
-      errorLabel={t("home.featuredError")}
-      typeLabel={t("home.typeLabel")}
-      topSpeedLabel={t("home.topSpeedLabel")}
-      torqueLabel={t("home.torqueLabel")}
-      yearLabel={t("home.yearLabel")}
-      searchPlaceholder={t("catalog.searchPlaceholder")}
-      initialScrollOffset={updatesScrollOffset}
-      onScrollOffsetChange={setUpdatesScrollOffset}
-      isRefreshing={isFeaturedCarsRefreshing}
-      onRefresh={refreshFeaturedCars}
-      onOpenCar={openCarDetail}
-    />
-  );
-
-  const renderGamesHub = () => (
-    <GamesHubScreen
-      title={t("games.title")}
-      subtitle={t("games.subtitle")}
-      tapToPlayLabel={t("home.tapToPlay")}
-      cards={homeCards}
-      onOpenGame={(game) => {
-        setSelectedCarId(null);
-        setActiveMode(game);
-      }}
-    />
-  );
-
-  const renderModeDetailContent = () => {
-    if (activeMode === "GUESS_CAR" || activeMode === "IMPOSTER") {
-      const isGuess = activeMode === "GUESS_CAR";
-
-      return (
-        <GameEntryScreen
-          eyebrow={t(isGuess ? "entry.guessEyebrow" : "entry.imposterEyebrow")}
-          title={t(isGuess ? "home.carGuess" : "home.imposter")}
-          note={t(isGuess ? "entry.guessNote" : "entry.imposterNote")}
-          createNewRoomLabel={t("entry.createNewRoom")}
-          joinExistingRoomLabel={t("entry.joinExistingRoom")}
-          roomCodeLabel={t("common.roomCode")}
-          joinHelper={t("entry.joinHelper")}
-          createLabel={t("common.createRoom")}
-          joinLabel={t("common.joinRoom")}
-          backLabel={t("common.back")}
-          roomCode={joinRoomCode}
-          onChangeRoomCode={setJoinRoomCode}
-          onBack={closeModeDetail}
-          onCreate={() => createRoomForGame(activeMode)}
-          onJoin={joinRoomForGame}
-        />
-      );
-    }
-
-    return null;
-  };
-
-  const renderProfileContent = () => (
-    <ProfileScreen
-      eyebrow={t("profile.eyebrow")}
-      subtitle={t("profile.subtitle")}
-      updateNameLabel={t("profile.updateName")}
-      playerNameLabel={t("common.playerName")}
-      helper={t("profile.helper")}
-      saveNameLabel={t("profile.saveName")}
-      currentName={profileName}
-      draftName={profileDraft}
-      isSaving={isSavingProfile}
-      onChangeDraft={setProfileDraft}
-      onSave={() => {
-        void saveProfileName(profileDraft);
-      }}
-    />
-  );
 
   return (
     <SafeAreaProvider>
@@ -302,20 +200,7 @@ export default function App() {
             {!roomState ? (
               !hasLoadedProfile ? null : !profileName ? (
                 <ScreenShell scrollEnabled={false}>
-                  <NameSetupScreen
-                    eyebrow={t("setup.eyebrow")}
-                    title={t("setup.title")}
-                    subtitle={t("setup.subtitle")}
-                    nameLabel={t("setup.nameLabel")}
-                    helper={t("setup.helper")}
-                    continueLabel={t("common.continue")}
-                    value={profileDraft}
-                    isSaving={isSavingProfile}
-                    onChange={setProfileDraft}
-                    onSubmit={() => {
-                      void saveProfileName(profileDraft);
-                    }}
-                  />
+                  <NameSetupScreen {...screenProps.nameSetupProps} />
                 </ScreenShell>
               ) : (
                 <PreRoomStack
@@ -323,13 +208,39 @@ export default function App() {
                   mountedTabs={
                     <MountedTabs
                       activeTab={activeTab}
-                      sellTab={renderSellHub()}
-                      updatesTab={renderUpdatesHub()}
-                      gamesTab={renderGamesHub()}
-                      profileTab={renderProfileContent()}
+                      sellTab={
+                        <SellCarHomeScreen
+                          featuredCars={featuredCars}
+                          sellCars={sellCars}
+                          isLoading={isFeaturedCarsLoading}
+                          hasError={hasFeaturedCarsError}
+                          {...screenProps.sellScreenProps}
+                        />
+                      }
+                      updatesTab={
+                        <CarNewsHomeScreen
+                          featuredCars={featuredCars}
+                          sellCars={sellCars}
+                          isLoading={isFeaturedCarsLoading}
+                          hasError={hasFeaturedCarsError}
+                          {...screenProps.updatesScreenProps}
+                        />
+                      }
+                      gamesTab={
+                        <GamesHubScreen
+                          {...screenProps.gamesHubProps}
+                          onOpenGame={(game) => {
+                            setSelectedCarId(null);
+                            setActiveMode(game);
+                          }}
+                        />
+                      }
+                      profileTab={<ProfileScreen {...screenProps.profileProps} />}
                     />
                   }
-                  modeDetail={renderModeDetailContent()}
+                  modeDetail={
+                    modeEntryProps ? <GameEntryScreen {...modeEntryProps} /> : null
+                  }
                   showModeDetail={isModeDetailScreen}
                   selectedCarId={selectedCarId}
                   modeOpacity={modeTransition.opacity}
@@ -339,11 +250,11 @@ export default function App() {
                   onDismissModeSwipe={dismissModeDetailAfterSwipe}
                   onDismissCarSwipe={dismissCarDetailAfterSwipe}
                   onCloseCar={closeCarDetail}
-                  backLabel={t("common.back")}
-                  typeLabel={t("home.typeLabel")}
-                  topSpeedLabel={t("home.topSpeedLabel")}
-                  torqueLabel={t("home.torqueLabel")}
-                  yearLabel={t("home.yearLabel")}
+                  backLabel={screenProps.t("common.back")}
+                  typeLabel={screenProps.t("home.typeLabel")}
+                  topSpeedLabel={screenProps.t("home.topSpeedLabel")}
+                  torqueLabel={screenProps.t("home.torqueLabel")}
+                  yearLabel={screenProps.t("home.yearLabel")}
                 />
               )
             ) : (
@@ -362,59 +273,23 @@ export default function App() {
                 guessResults={guessResults}
                 currentImposterPayload={currentImposterPayload}
                 imposterResults={imposterResults}
-                eyebrow={t("lobby.eyebrow", { code: roomState.roomCode })}
-                title={t("lobby.title")}
-                subtitle={t("lobby.subtitle", { count: roomState.players.length })}
-                playersLabel={t("lobby.players")}
-                hostLabel={t("lobby.host")}
-                hostControlsLabel={t("lobby.hostControls")}
-                waitingHostLabel={t("lobby.waitingHost")}
-                guessLabel={t("home.carGuess")}
-                imposterLabel={t("home.imposter")}
-                startRoundsLabel={t("lobby.startRounds")}
-                waitingText={t(
-                  roomState.gameType === "GUESS_CAR"
-                    ? "lobby.hostSelectedGuess"
-                    : roomState.gameType === "IMPOSTER"
-                      ? "lobby.hostSelectedImposter"
-                      : "lobby.hostNotSelected",
-                )}
-                leaveRoomLabel={t("lobby.leaveRoom")}
+                eyebrow={roomLabels?.eyebrow ?? ""}
+                title={roomLabels?.title ?? ""}
+                subtitle={roomLabels?.subtitle ?? ""}
+                playersLabel={roomLabels?.playersLabel ?? ""}
+                hostLabel={roomLabels?.hostLabel ?? ""}
+                hostControlsLabel={roomLabels?.hostControlsLabel ?? ""}
+                waitingHostLabel={roomLabels?.waitingHostLabel ?? ""}
+                guessLabel={roomLabels?.guessLabel ?? ""}
+                imposterLabel={roomLabels?.imposterLabel ?? ""}
+                startRoundsLabel={roomLabels?.startRoundsLabel ?? ""}
+                waitingText={roomLabels?.waitingText ?? ""}
+                leaveRoomLabel={roomLabels?.leaveRoomLabel ?? ""}
                 onLeaveRoom={() => {
                   leaveRoomToPreviousMode(roomState.gameType);
                 }}
-                guessScreenLabels={{
-                  eyebrow: t("guess.eyebrow"),
-                  roundTitle: t("guess.roundTitle", { round: roomState.round }),
-                  chooseOptionLabel: t("guess.chooseOption"),
-                  submittedLabel: t("guess.submitted"),
-                  waitingLabel: t("guess.waiting"),
-                  timeLeftLabel: t("timer.timeLeft"),
-                  roomClosesLabel: t("timer.roomCloses"),
-                  winnerLabel: t("guess.winner"),
-                  noWinnerLabel: t("guess.noWinner"),
-                  correctOptionLabel: t("guess.correctOption"),
-                  answeredPlayersLabel: t("guess.answeredPlayers"),
-                  leaderboardLabel: t("guess.leaderboard"),
-                  roundPointsLabel: t("guess.roundPoints"),
-                  totalPointsLabel: t("guess.totalPoints"),
-                  countryLabel: t("guess.country"),
-                  ccLabel: t("guess.cc"),
-                  hpLabel: t("guess.hp"),
-                  torqueLabel: t("guess.torque"),
-                  specialLabel: t("guess.special"),
-                  noSpecialLabel: t("guess.noSpecial"),
-                }}
-                imposterScreenLabels={{
-                  eyebrow: t("imposter.eyebrow"),
-                  roundTitle: t("imposter.roundTitle", { round: roomState.round }),
-                  waitingLabel: t("imposter.waiting"),
-                  timeLeftLabel: t("timer.timeLeft"),
-                  roomClosesLabel: t("timer.roomCloses"),
-                  imposterRevealLabel: t("imposter.wasImposter"),
-                  normalImageLabel: t("imposter.normalImage"),
-                  imposterImageLabel: t("imposter.imposterImage"),
-                }}
+                guessScreenLabels={roomLabels!.guessScreenLabels}
+                imposterScreenLabels={roomLabels!.imposterScreenLabels}
                 onSelectOption={setSelectedOption}
                 onMarkGuessSubmitted={markGuessSubmitted}
               />
@@ -433,11 +308,7 @@ export default function App() {
               ]}
             >
               <LaunchScreen
-                headline={t("launch.headline")}
-                shadow={t("launch.shadow")}
-                metaLabel={t("launch.metaLabel")}
-                metaValue={t("launch.metaValue")}
-                continueLabel={t("common.continue")}
+                {...screenProps.launchProps}
                 onContinue={continueFromLaunch}
               />
             </Animated.View>

@@ -6,7 +6,6 @@ import {
   StyleSheet,
   View,
 } from "react-native";
-import { Image } from "expo-image";
 import { Text } from "react-native-paper";
 
 import type { CatalogCategory, CarSummary } from "../api/catalog";
@@ -15,6 +14,7 @@ import { appColors } from "../theme/paperTheme";
 import { fontFamilies } from "../theme/typography";
 import { CatalogHeader } from "./CatalogHeader";
 import { CarsHeroScreen } from "./CarsHeroScreen";
+import { ResponsiveImage } from "./ResponsiveImage";
 
 type CarsCatalogFeedProps = {
   category: CatalogCategory;
@@ -131,15 +131,6 @@ export const CarsCatalogFeed = ({
         }
         ListHeaderComponent={
           <View style={styles.headerStack}>
-            {showHeader ? (
-              <CatalogHeader
-                title={headerTitle}
-                searchPlaceholder={searchPlaceholder}
-                value={searchText}
-                onChangeText={setSearchText}
-                onClear={clearSearch}
-              />
-            ) : null}
             <CarsHeroScreen
               featuredCars={filteredFeaturedCars}
               sellCars={filteredSellCars}
@@ -156,6 +147,15 @@ export const CarsCatalogFeed = ({
               fixedPanel={fixedPanel}
               onOpenCar={onOpenCar}
             />
+            {showHeader ? (
+              <CatalogHeader
+                title={headerTitle}
+                searchPlaceholder={searchPlaceholder}
+                value={searchText}
+                onChangeText={setSearchText}
+                onClear={clearSearch}
+              />
+            ) : null}
           </View>
         }
         ListHeaderComponentStyle={styles.heroWrap}
@@ -188,7 +188,11 @@ export const CarsCatalogFeed = ({
         renderItem={({ item: car }) => (
           <Pressable style={styles.card} onPress={() => onOpenCar(car.id)}>
             <View style={styles.imageWrap}>
-              <Image source={car.imageUrl} style={styles.image} contentFit="cover" />
+              <ResponsiveImage
+                source={car.imageUrl}
+                height={220}
+                backgroundColor="#0f131d"
+              />
             </View>
 
             <View style={styles.cardBody}>
@@ -255,10 +259,6 @@ const styles = StyleSheet.create({
   imageWrap: {
     height: 220,
     backgroundColor: "#0f131d",
-  },
-  image: {
-    width: "100%",
-    height: "100%",
   },
   cardBody: {
     paddingHorizontal: 16,
