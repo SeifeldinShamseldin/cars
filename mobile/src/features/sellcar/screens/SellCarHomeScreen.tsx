@@ -15,6 +15,26 @@ type SellCarHomeScreenProps = {
   torqueLabel: string;
   yearLabel: string;
   searchPlaceholder: string;
+  quickSearchTitle: string;
+  brandLabel: string;
+  modelLabel: string;
+  carTypeLabel: string;
+  priceLabel: string;
+  priceFromLabel: string;
+  priceToLabel: string;
+  yearFilterLabel: string;
+  yearFromLabel: string;
+  yearToLabel: string;
+  mileageLabel: string;
+  mileageFromLabel: string;
+  mileageToLabel: string;
+  conditionLabel: string;
+  transmissionLabel: string;
+  fuelTypeLabel: string;
+  clearAllLabel: string;
+  offersLabel: string;
+  chooseBrandFirstLabel: string;
+  noModelsLabel: string;
   initialScrollOffset?: number;
   onScrollOffsetChange?: (offset: number) => void;
   isRefreshing?: boolean;
@@ -36,6 +56,26 @@ export const SellCarHomeScreen = ({
   torqueLabel,
   yearLabel,
   searchPlaceholder,
+  quickSearchTitle,
+  brandLabel,
+  modelLabel,
+  carTypeLabel,
+  priceLabel,
+  priceFromLabel,
+  priceToLabel,
+  yearFilterLabel,
+  yearFromLabel,
+  yearToLabel,
+  mileageLabel,
+  mileageFromLabel,
+  mileageToLabel,
+  conditionLabel,
+  transmissionLabel,
+  fuelTypeLabel,
+  clearAllLabel,
+  offersLabel,
+  chooseBrandFirstLabel,
+  noModelsLabel,
   initialScrollOffset,
   onScrollOffsetChange,
   isRefreshing,
@@ -59,6 +99,26 @@ export const SellCarHomeScreen = ({
     fixedPanel="SELL"
     headerTitle={sellLabel}
     searchPlaceholder={searchPlaceholder}
+    quickSearchTitle={quickSearchTitle}
+    brandLabel={brandLabel}
+    modelLabel={modelLabel}
+    carTypeLabel={carTypeLabel}
+    priceLabel={priceLabel}
+    priceFromLabel={priceFromLabel}
+    priceToLabel={priceToLabel}
+    yearFilterLabel={yearFilterLabel}
+    yearFromLabel={yearFromLabel}
+    yearToLabel={yearToLabel}
+    mileageLabel={mileageLabel}
+    mileageFromLabel={mileageFromLabel}
+    mileageToLabel={mileageToLabel}
+    conditionLabel={conditionLabel}
+    transmissionLabel={transmissionLabel}
+    fuelTypeLabel={fuelTypeLabel}
+    clearAllLabel={clearAllLabel}
+    offersLabel={offersLabel}
+    chooseBrandFirstLabel={chooseBrandFirstLabel}
+    noModelsLabel={noModelsLabel}
     initialScrollOffset={initialScrollOffset}
     onScrollOffsetChange={onScrollOffsetChange}
     isFeaturedCarsRefreshing={isRefreshing}

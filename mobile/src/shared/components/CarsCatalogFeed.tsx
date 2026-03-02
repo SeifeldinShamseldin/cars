@@ -1,18 +1,12 @@
-import {
-  Animated,
-  FlatList,
-  Pressable,
-  RefreshControl,
-  StyleSheet,
-  View,
-} from "react-native";
-import { Text } from "react-native-paper";
+import { FlatList, Pressable, RefreshControl, StyleSheet, View } from "react-native";
+import { Icon, Text } from "react-native-paper";
 
 import type { CatalogCategory, CarSummary } from "../api/catalog";
 import { useCarsCatalogFeed } from "../hooks/useCarsCatalogFeed";
 import { appColors } from "../theme/paperTheme";
 import { fontFamilies } from "../theme/typography";
 import { CatalogHeader } from "./CatalogHeader";
+import { CatalogSearchOverlay } from "./CatalogSearchOverlay";
 import { CarsHeroScreen } from "./CarsHeroScreen";
 import { ResponsiveImage } from "./ResponsiveImage";
 
@@ -33,6 +27,26 @@ type CarsCatalogFeedProps = {
   fixedPanel: "FEATURED" | "SELL";
   headerTitle: string;
   searchPlaceholder: string;
+  quickSearchTitle?: string;
+  brandLabel?: string;
+  modelLabel?: string;
+  carTypeLabel?: string;
+  priceLabel?: string;
+  priceFromLabel?: string;
+  priceToLabel?: string;
+  yearFilterLabel?: string;
+  yearFromLabel?: string;
+  yearToLabel?: string;
+  mileageLabel?: string;
+  mileageFromLabel?: string;
+  mileageToLabel?: string;
+  conditionLabel?: string;
+  transmissionLabel?: string;
+  fuelTypeLabel?: string;
+  clearAllLabel?: string;
+  offersLabel?: string;
+  chooseBrandFirstLabel?: string;
+  noModelsLabel?: string;
   showHeader?: boolean;
   initialScrollOffset?: number;
   onScrollOffsetChange?: (offset: number) => void;
@@ -58,6 +72,26 @@ export const CarsCatalogFeed = ({
   fixedPanel,
   headerTitle,
   searchPlaceholder,
+  quickSearchTitle = "Quick search",
+  brandLabel = "Car brand",
+  modelLabel = "Car model",
+  carTypeLabel = "Car type",
+  priceLabel = "Price",
+  priceFromLabel = "Min price",
+  priceToLabel = "Max price",
+  yearFilterLabel = "Year",
+  yearFromLabel = "From",
+  yearToLabel = "To",
+  mileageLabel = "Mileage (KM)",
+  mileageFromLabel = "KM from",
+  mileageToLabel = "KM to",
+  conditionLabel = "Condition",
+  transmissionLabel = "Transmission",
+  fuelTypeLabel = "Fuel type",
+  clearAllLabel = "Clear all",
+  offersLabel = "Offers",
+  chooseBrandFirstLabel = "Choose a brand first",
+  noModelsLabel = "No models found",
   showHeader = true,
   initialScrollOffset = 0,
   onScrollOffsetChange,
@@ -67,10 +101,38 @@ export const CarsCatalogFeed = ({
 }: CarsCatalogFeedProps) => {
   const {
     searchText,
-    setSearchText,
+    activeFilterBadges,
+    hasActiveFilters,
+    isSearchOpen,
+    draftFilters,
+    availableBrands,
+    availableModelGroups,
+    availableCarTypes,
+    availablePrices,
+    availableYears,
+    availableConditions,
+    availableTransmissions,
+    availableFuelTypes,
+    resetAllFilters,
+    resetAllAndApply,
+    removeAppliedFilter,
     clearSearch,
-    headerTranslateY,
-    headerOpacity,
+    openSearch,
+    closeSearch,
+    setDraftQuery,
+    setDraftBrand,
+    toggleDraftModel,
+    setDraftCarType,
+    setDraftPriceFrom,
+    setDraftPriceTo,
+    setDraftYearFrom,
+    setDraftYearTo,
+    setDraftMileageFrom,
+    setDraftMileageTo,
+    setDraftCondition,
+    setDraftTransmission,
+    setDraftFuelType,
+    applySearch,
     listRef,
     filteredFeaturedCars,
     filteredSellCars,
@@ -95,25 +157,70 @@ export const CarsCatalogFeed = ({
   return (
     <View style={styles.root}>
       {showHeader ? (
-        <Animated.View
-          pointerEvents="box-none"
-          style={[
-            styles.floatingHeader,
-            {
-              opacity: headerOpacity,
-              transform: [{ translateY: headerTranslateY }],
-            },
-          ]}
-        >
-          <CatalogHeader
-            searchPlaceholder={searchPlaceholder}
-            value={searchText}
-            onChangeText={setSearchText}
-            onClear={clearSearch}
-          />
-        </Animated.View>
+        <CatalogSearchOverlay
+          visible={isSearchOpen}
+          title={quickSearchTitle}
+          searchPlaceholder={searchPlaceholder}
+          searchValue={draftFilters.query}
+          brandLabel={brandLabel}
+          modelLabel={modelLabel}
+          carTypeLabel={carTypeLabel}
+          priceLabel={priceLabel}
+          priceFromLabel={priceFromLabel}
+          priceToLabel={priceToLabel}
+          yearLabel={yearFilterLabel}
+          yearFromLabel={yearFromLabel}
+          yearToLabel={yearToLabel}
+          mileageLabel={mileageLabel}
+          mileageFromLabel={mileageFromLabel}
+          mileageToLabel={mileageToLabel}
+          conditionLabel={conditionLabel}
+          transmissionLabel={transmissionLabel}
+          fuelTypeLabel={fuelTypeLabel}
+          clearAllLabel={clearAllLabel}
+          offersLabel={offersLabel}
+          selectedBrand={draftFilters.brand}
+          selectedModels={draftFilters.model ?? []}
+          selectedCarType={draftFilters.carType}
+          selectedPriceFrom={draftFilters.priceFrom}
+          selectedPriceTo={draftFilters.priceTo}
+          selectedYearFrom={draftFilters.yearFrom}
+          selectedYearTo={draftFilters.yearTo}
+          selectedMileageFrom={draftFilters.mileageFrom}
+          selectedMileageTo={draftFilters.mileageTo}
+          selectedCondition={draftFilters.condition}
+          selectedTransmission={draftFilters.transmission}
+          selectedFuelType={draftFilters.fuelType}
+          availableBrands={availableBrands}
+          availableModelGroups={availableModelGroups}
+          availableCarTypes={availableCarTypes}
+          availablePrices={availablePrices}
+          availableYears={availableYears}
+          availableConditions={availableConditions}
+          availableTransmissions={availableTransmissions}
+          availableFuelTypes={availableFuelTypes}
+          chooseBrandFirstLabel={chooseBrandFirstLabel}
+          noModelsLabel={noModelsLabel}
+          resultCount={filteredCars.length}
+          onBack={closeSearch}
+          onChangeSearch={setDraftQuery}
+          onClearAll={resetAllFilters}
+          onClearSearch={clearSearch}
+          onSelectBrand={setDraftBrand}
+          onToggleModel={toggleDraftModel}
+          onSelectCarType={setDraftCarType}
+          onSelectPriceFrom={setDraftPriceFrom}
+          onSelectPriceTo={setDraftPriceTo}
+          onSelectYearFrom={setDraftYearFrom}
+          onSelectYearTo={setDraftYearTo}
+          onSelectMileageFrom={setDraftMileageFrom}
+          onSelectMileageTo={setDraftMileageTo}
+          onSelectCondition={setDraftCondition}
+          onSelectTransmission={setDraftTransmission}
+          onSelectFuelType={setDraftFuelType}
+          onApply={applySearch}
+        />
       ) : null}
-
       <FlatList
         ref={listRef}
         data={filteredCars}
@@ -131,30 +238,52 @@ export const CarsCatalogFeed = ({
         }
         ListHeaderComponent={
           <View style={styles.headerStack}>
-            <CarsHeroScreen
-              featuredCars={filteredFeaturedCars}
-              sellCars={filteredSellCars}
-              isFeaturedCarsLoading={isFeaturedCarsLoading}
-              hasFeaturedCarsError={hasFeaturedCarsError}
-              featuredLabel={featuredLabel}
-              sellLabel={sellLabel}
-              featuredLoadingLabel={featuredLoadingLabel}
-              featuredErrorLabel={featuredErrorLabel}
-              typeLabel={typeLabel}
-              topSpeedLabel={topSpeedLabel}
-              torqueLabel={torqueLabel}
-              yearLabel={yearLabel}
-              fixedPanel={fixedPanel}
-              onOpenCar={onOpenCar}
-            />
-            {showHeader ? (
-              <CatalogHeader
-                title={headerTitle}
-                searchPlaceholder={searchPlaceholder}
-                value={searchText}
-                onChangeText={setSearchText}
-                onClear={clearSearch}
+            {!hasActiveFilters ? (
+              <CarsHeroScreen
+                featuredCars={filteredFeaturedCars}
+                sellCars={filteredSellCars}
+                isFeaturedCarsLoading={isFeaturedCarsLoading}
+                hasFeaturedCarsError={hasFeaturedCarsError}
+                featuredLabel={featuredLabel}
+                sellLabel={sellLabel}
+                featuredLoadingLabel={featuredLoadingLabel}
+                featuredErrorLabel={featuredErrorLabel}
+                typeLabel={typeLabel}
+                topSpeedLabel={topSpeedLabel}
+                torqueLabel={torqueLabel}
+                yearLabel={yearLabel}
+                fixedPanel={fixedPanel}
+                onOpenCar={onOpenCar}
               />
+            ) : null}
+            {showHeader ? (
+              <View style={styles.searchSection}>
+                <CatalogHeader
+                  title={headerTitle}
+                  searchPlaceholder={searchPlaceholder}
+                  value={searchText}
+                  onChangeText={() => undefined}
+                  onClear={resetAllAndApply}
+                  editable={false}
+                  onPress={openSearch}
+                />
+                {activeFilterBadges.length > 0 ? (
+                  <View style={styles.activeFiltersWrap}>
+                    {activeFilterBadges.map((badge) => (
+                      <Pressable
+                        key={badge.id}
+                        style={styles.activeFilterBadge}
+                        onPress={() => removeAppliedFilter(badge.id)}
+                      >
+                        <Text style={styles.activeFilterBadgeText}>{badge.label}</Text>
+                        <View style={styles.activeFilterBadgeClose}>
+                          <Icon source="close" size={12} color={appColors.primary} />
+                        </View>
+                      </Pressable>
+                    ))}
+                  </View>
+                ) : null}
+              </View>
             ) : null}
           </View>
         }
@@ -241,12 +370,38 @@ const styles = StyleSheet.create({
   headerStack: {
     gap: 10,
   },
-  floatingHeader: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 20,
+  searchSection: {
+    gap: 10,
+  },
+  activeFiltersWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  activeFilterBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: appColors.primary,
+    backgroundColor: appColors.primary,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  activeFilterBadgeClose: {
+    width: 18,
+    height: 18,
+    borderRadius: 999,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: appColors.primaryDeep,
+  },
+  activeFilterBadgeText: {
+    color: appColors.primaryDeep,
+    fontFamily: fontFamilies.displayBold,
+    fontSize: 13,
+    lineHeight: 15,
   },
   card: {
     borderRadius: 24,

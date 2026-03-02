@@ -12,6 +12,10 @@ import {
   toCatalogCarSummaryDto,
   type CarCategory,
 } from "./data/demoCars";
+import {
+  getCarReferenceBrands,
+  getCarReferenceModelGroups,
+} from "./data/carReference";
 import { registerHandlers } from "./core/socket/registerHandlers";
 import type {
   ClientToServerEvents,
@@ -162,6 +166,22 @@ const httpServer = createServer((req, res) => {
       cars: getCarsByCategory("SELL")
         .slice(0, 5)
         .map((car) => toCatalogCarSummaryDto(car, baseUrl)),
+    });
+    return;
+  }
+
+  if (req.method === "GET" && requestUrl.pathname === "/api/reference/car-brands") {
+    writeJson(res, 200, {
+      brands: getCarReferenceBrands(),
+    });
+    return;
+  }
+
+  if (req.method === "GET" && requestUrl.pathname === "/api/reference/car-models") {
+    const brand = requestUrl.searchParams.get("brand") ?? "";
+    writeJson(res, 200, {
+      brand,
+      groups: getCarReferenceModelGroups(brand),
     });
     return;
   }

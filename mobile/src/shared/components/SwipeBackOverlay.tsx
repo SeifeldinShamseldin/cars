@@ -8,7 +8,7 @@ import {
   View,
 } from "react-native";
 
-const EDGE_WIDTH = 28;
+const EDGE_WIDTH = 48;
 const COMPLETE_THRESHOLD = 96;
 const SCREEN_WIDTH = Dimensions.get("window").width;
 
@@ -25,7 +25,7 @@ export const SwipeBackOverlay = ({
   const panResponder = useRef(
     PanResponder.create({
       onMoveShouldSetPanResponder: (_, gesture) =>
-        gesture.dx > 10 && Math.abs(gesture.dx) > Math.abs(gesture.dy),
+        gesture.dx > 6 && Math.abs(gesture.dx) > Math.abs(gesture.dy),
       onPanResponderMove: (_, gesture) => {
         translateX.setValue(Math.max(0, gesture.dx));
       },
@@ -81,5 +81,6 @@ const styles = StyleSheet.create({
     left: 0,
     width: EDGE_WIDTH,
     zIndex: 30,
+    elevation: 30,
   },
 });

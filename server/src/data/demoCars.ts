@@ -18,12 +18,14 @@ export type DemoCar = {
   galleryImagePaths: string[];
   partImageUrl: string;
   clue: GuessCarClue;
+  priceValue?: number;
   priceLabel?: string;
   condition?: string;
   fuelType?: string;
   transmission?: string;
   trim?: string;
   color?: string;
+  mileage?: number;
   hp?: number;
   engineLabel?: string;
 };
@@ -39,7 +41,14 @@ export type CatalogCarSummaryDto = {
   torqueNm: number;
   imageUrl: string;
   description: string;
+  priceValue?: number;
   priceLabel?: string;
+  condition?: string;
+  fuelType?: string;
+  transmission?: string;
+  trim?: string;
+  color?: string;
+  mileage?: number;
 };
 
 export type CatalogCarDetailDto = CatalogCarSummaryDto & {
@@ -49,6 +58,7 @@ export type CatalogCarDetailDto = CatalogCarSummaryDto & {
   transmission?: string;
   trim?: string;
   color?: string;
+  mileage?: number;
   hp?: number;
   engineLabel?: string;
 };
@@ -67,10 +77,12 @@ type BuildCarDetails = Partial<
     | "transmission"
     | "trim"
     | "color"
+    | "mileage"
     | "hp"
     | "engineLabel"
     | "imagePath"
     | "galleryImagePaths"
+    | "priceValue"
   >
 >;
 
@@ -106,12 +118,16 @@ const buildCar = (
     galleryImagePaths: details.galleryImagePaths ?? [],
     partImageUrl: buildPlaceholderImage(label, partSuffix),
     clue,
-    priceLabel: details.priceLabel,
+    priceValue: details.priceValue,
+    priceLabel:
+      details.priceLabel ??
+      (details.priceValue !== undefined ? `EGP ${details.priceValue.toLocaleString()}` : undefined),
     condition: details.condition,
     fuelType: details.fuelType,
     transmission: details.transmission,
     trim: details.trim,
     color: details.color,
+    mileage: details.mileage,
     hp: details.hp,
     engineLabel: details.engineLabel,
   };
@@ -130,7 +146,7 @@ export const DEMO_CARS: DemoCar[] = [
     "Twin-turbo grip and everyday supercar energy in one brutal package.",
     { country: "Japan", cc: 3799, hp: 565, torque: 633, special: "Twin-turbo AWD coupe" },
     "Headlight",
-    { imagePath: buildAssetPath("nissan-gtr-r35.png") },
+    { imagePath: buildAssetPath("nissan-gtr-r35.png"), mileage: 18000, priceValue: 8500000 },
   ),
   buildCar(
     "supra-a80",
@@ -144,7 +160,7 @@ export const DEMO_CARS: DemoCar[] = [
     "A tuner icon with the kind of legend status everyone recognizes instantly.",
     { country: "Japan", cc: 2997, hp: 320, torque: 427, special: "2JZ legend" },
     "Tail Light",
-    { imagePath: buildAssetPath("toyota-supra-a80.png") },
+    { imagePath: buildAssetPath("toyota-supra-a80.png"), mileage: 92000, priceValue: 3200000 },
   ),
   buildCar(
     "civic-type-r",
@@ -158,7 +174,7 @@ export const DEMO_CARS: DemoCar[] = [
     "Sharp front-wheel-drive performance that feels fast even before the race starts.",
     { country: "Japan", cc: 1996, hp: 306, torque: 400, special: "Front-wheel-drive hot hatch" },
     "Wheel",
-    { imagePath: buildAssetPath("honda-civic-type-r-fk8.png") },
+    { imagePath: buildAssetPath("honda-civic-type-r-fk8.png"), mileage: 26000, priceValue: 2650000 },
   ),
   buildCar(
     "mx5-nd",
@@ -172,7 +188,7 @@ export const DEMO_CARS: DemoCar[] = [
     "Lightweight fun built around balance, simplicity, and a pure driver connection.",
     { country: "Japan", cc: 1998, hp: 181, torque: 205, special: "Lightweight roadster" },
     "Mirror",
-    { imagePath: buildAssetPath("mazda-mx5-nd.png") },
+    { imagePath: buildAssetPath("mazda-mx5-nd.png"), mileage: 11000, priceValue: 2400000 },
   ),
   buildCar(
     "mercedes-c180",
@@ -195,12 +211,14 @@ export const DEMO_CARS: DemoCar[] = [
         buildAssetPath("mercedes-c180-3.jpg"),
         buildAssetPath("mercedes-c180-4.jpg"),
       ],
+      priceValue: 3400000,
       priceLabel: "EGP 3,400,000",
       condition: "New",
       fuelType: "Benzine",
       transmission: "Automatic",
       trim: "AMG",
       color: "Black",
+      mileage: 0,
       hp: 170,
       engineLabel: "Inline-4 turbo 1.5L",
     },
@@ -217,6 +235,7 @@ export const DEMO_CARS: DemoCar[] = [
     "Turbocharged rally heritage with a huge fanbase and unmistakable attitude.",
     { country: "Japan", cc: 1997, hp: 286, torque: 392, special: "Turbo rally icon" },
     "Spoiler",
+    { mileage: 88000, priceValue: 1900000 },
   ),
   buildCar(
     "wrx-sti",
@@ -230,6 +249,7 @@ export const DEMO_CARS: DemoCar[] = [
     "A boxer-powered street weapon with rally DNA in every launch.",
     { country: "Japan", cc: 2457, hp: 310, torque: 393, special: "Boxer AWD sedan" },
     "Bonnet Scoop",
+    { mileage: 34000, priceValue: 2850000 },
   ),
   buildCar(
     "mustang-gt",
@@ -243,6 +263,7 @@ export const DEMO_CARS: DemoCar[] = [
     "Naturally aspirated V8 power with old-school character and modern tech.",
     { country: "USA", cc: 5038, hp: 450, torque: 556, special: "Naturally aspirated V8" },
     "Taillight",
+    { mileage: 12000, priceValue: 4750000 },
   ),
   buildCar(
     "camaro-zl1",
@@ -256,6 +277,7 @@ export const DEMO_CARS: DemoCar[] = [
     "Supercharged power and track-ready aggression without any subtlety.",
     { country: "USA", cc: 6162, hp: 650, torque: 881, special: "Supercharged muscle car" },
     "Front Splitter",
+    { priceValue: 6200000 },
   ),
   buildCar(
     "challenger-hellcat",
@@ -269,6 +291,7 @@ export const DEMO_CARS: DemoCar[] = [
     "Pure straight-line chaos in a huge coupe silhouette.",
     { country: "USA", cc: 6166, hp: 717, torque: 881, special: "Supercharged coupe" },
     "Hood Scoop",
+    { priceValue: 7100000 },
   ),
   buildCar(
     "corvette-c8",
@@ -282,6 +305,7 @@ export const DEMO_CARS: DemoCar[] = [
     "America's mid-engine answer to exotic performance and presence.",
     { country: "USA", cc: 6162, hp: 495, torque: 637, special: "Mid-engine American sports car" },
     "Side Intake",
+    { priceValue: 8900000 },
   ),
   buildCar(
     "porsche-911-carrera-gts",
@@ -453,7 +477,14 @@ export const toCatalogCarSummaryDto = (
   torqueNm: car.torqueNm,
   imageUrl: car.imagePath ? resolveAssetUrl(baseUrl, car.imagePath) : car.carImageUrl,
   description: car.description,
+  priceValue: car.priceValue,
   priceLabel: car.priceLabel,
+  condition: car.condition,
+  fuelType: car.fuelType,
+  transmission: car.transmission,
+  trim: car.trim,
+  color: car.color,
+  mileage: car.mileage,
 });
 
 export const toCatalogCarDetailDto = (
@@ -470,6 +501,7 @@ export const toCatalogCarDetailDto = (
   transmission: car.transmission,
   trim: car.trim,
   color: car.color,
+  mileage: car.mileage,
   hp: car.hp,
   engineLabel: car.engineLabel,
 });

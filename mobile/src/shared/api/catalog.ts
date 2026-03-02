@@ -11,7 +11,14 @@ export type CarSummary = {
   torqueNm: number;
   imageUrl: string;
   description: string;
+  priceValue?: number;
   priceLabel?: string;
+  condition?: string;
+  fuelType?: string;
+  transmission?: string;
+  trim?: string;
+  color?: string;
+  mileage?: number;
 };
 
 export type CarDetail = CarSummary & {
@@ -21,6 +28,7 @@ export type CarDetail = CarSummary & {
   transmission?: string;
   trim?: string;
   color?: string;
+  mileage?: number;
   hp?: number;
   engineLabel?: string;
 };
@@ -28,6 +36,11 @@ export type CarDetail = CarSummary & {
 export type HomeCatalogResponse = {
   sellCars: CarSummary[];
   newCars: CarSummary[];
+};
+
+export type CarReferenceModelGroup = {
+  groupLabel: string | null;
+  models: string[];
 };
 
 export type PaginatedCarsResponse = {
@@ -59,6 +72,21 @@ export const fetchHomeCatalog = async (): Promise<HomeCatalogResponse> => {
     sellCars: sellResponse.cars,
     newCars: newResponse.cars,
   };
+};
+
+export const fetchCarBrands = async (): Promise<string[]> => {
+  const response = await fetchJson<{ brands: string[] }>("/api/reference/car-brands");
+  return response.brands;
+};
+
+export const fetchCarModelGroups = async (
+  brand: string,
+): Promise<CarReferenceModelGroup[]> => {
+  const response = await fetchJson<{ groups: CarReferenceModelGroup[] }>(
+    `/api/reference/car-models?brand=${encodeURIComponent(brand)}`,
+  );
+
+  return response.groups;
 };
 
 export const fetchCarsPage = async (
