@@ -1,5 +1,5 @@
-import { StyleSheet, View } from "react-native";
-import { Button, Card, Text } from "react-native-paper";
+import { StyleSheet, useWindowDimensions, View } from "react-native";
+import { Button, Card, Chip, Text } from "react-native-paper";
 
 import type {
   GuessCarRoundEndedResults,
@@ -12,14 +12,17 @@ import { fontFamilies } from "../../../shared/theme/typography";
 
 type GuessCarScreenProps = {
   payload?: GuessCarRoundStartedPayload;
-  round: number;
   roundEndsAt?: number;
+  isHost: boolean;
   selectedOptionId?: string;
   disabled: boolean;
   results?: GuessCarRoundEndedResults;
   roomClosesAt?: number;
   eyebrow: string;
   roundTitle: string;
+  exitGameLabel: string;
+  rematchLabel: string;
+  leaveRoomLabel: string;
   chooseOptionLabel: string;
   submittedLabel: string;
   waitingLabel: string;
@@ -38,20 +41,26 @@ type GuessCarScreenProps = {
   torqueLabel: string;
   specialLabel: string;
   noSpecialLabel: string;
+  onExitGame: () => void;
+  onRematchGame: () => void;
+  onLeaveRoom: () => void;
   onSelectOption: (optionId: string) => void;
   onSubmitOption: (optionId: string) => void;
 };
 
 export const GuessCarScreen = ({
   payload,
-  round,
   roundEndsAt,
+  isHost,
   selectedOptionId,
   disabled,
   results,
   roomClosesAt,
   eyebrow,
   roundTitle,
+  exitGameLabel,
+  rematchLabel,
+  leaveRoomLabel,
   chooseOptionLabel,
   submittedLabel,
   waitingLabel,
@@ -70,9 +79,16 @@ export const GuessCarScreen = ({
   torqueLabel,
   specialLabel,
   noSpecialLabel,
+  onExitGame,
+  onRematchGame,
+  onLeaveRoom,
   onSelectOption,
   onSubmitOption,
 }: GuessCarScreenProps) => {
+  const { width } = useWindowDimensions();
+  const isCompact = width < 390;
+  const imageHeight = isCompact ? 190 : 220;
+
   if (!payload) {
     return (
       <Card mode="elevated" style={styles.card}>
@@ -97,17 +113,19 @@ export const GuessCarScreen = ({
                 <CountdownPill targetTime={roomClosesAt} label={roomClosesLabel} />
               ) : null}
             </View>
-            <Text style={styles.title}>
+            <Text style={[styles.title, isCompact && styles.titleCompact]}>
               {results.winnerNickname
                 ? winnerLabel.replace("{name}", results.winnerNickname)
                 : noWinnerLabel}
             </Text>
-            <Text style={styles.clueLine}>
-              {correctOptionLabel.replace("{value}", results.correctOptionId)}
-            </Text>
-            <Text style={styles.clueLine}>
-              {answeredPlayersLabel.replace("{count}", String(results.answeredCount))}
-            </Text>
+            <View style={styles.resultMeta}>
+              <Chip compact style={styles.resultChip}>
+                {correctOptionLabel.replace("{value}", results.correctOptionId)}
+              </Chip>
+              <Chip compact style={styles.resultChip}>
+                {answeredPlayersLabel.replace("{count}", String(results.answeredCount))}
+              </Chip>
+            </View>
           </Card.Content>
         </Card>
 
@@ -130,6 +148,29 @@ export const GuessCarScreen = ({
                 </Text>
               </View>
             ))}
+            <View style={styles.footerActions}>
+              {roomClosesAt ? (
+                <Button
+                mode="contained"
+                onPress={onRematchGame}
+                style={styles.rematchButton}
+                contentStyle={styles.exitButtonContent}
+                labelStyle={styles.rematchButtonLabel}
+                >
+                  {rematchLabel}
+                </Button>
+              ) : null}
+              {roomClosesAt ? (
+                <Button
+                  mode="outlined"
+                  onPress={onLeaveRoom}
+                  style={styles.leaveButton}
+                  labelStyle={styles.leaveButtonLabel}
+                >
+                  {leaveRoomLabel}
+                </Button>
+              ) : null}
+            </View>
           </Card.Content>
         </Card>
       </>
@@ -144,32 +185,35 @@ export const GuessCarScreen = ({
             <Text style={styles.eyebrow}>{eyebrow}</Text>
             <CountdownPill targetTime={roundEndsAt} label={timeLeftLabel} />
           </View>
-          <Text style={styles.title}>{roundTitle}</Text>
+          <Text style={[styles.title, isCompact && styles.titleCompact]}>{roundTitle}</Text>
 
           {payload.mode === "CLUE" ? (
             <View style={styles.clues}>
-              <Text style={styles.clueLine}>
-                {countryLabel.replace("{value}", payload.clue.country ?? "-")}
-              </Text>
-              <Text style={styles.clueLine}>
-                {ccLabel.replace("{value}", String(payload.clue.cc ?? "-"))}
-              </Text>
-              <Text style={styles.clueLine}>
-                {hpLabel.replace("{value}", String(payload.clue.hp ?? "-"))}
-              </Text>
-              <Text style={styles.clueLine}>
-                {torqueLabel.replace("{value}", String(payload.clue.torque ?? "-"))}
-              </Text>
-              <Text style={styles.clueLine}>
-                {specialLabel.replace("{value}", payload.clue.special ?? noSpecialLabel)}
-              </Text>
+              <View style={styles.clueCard}>
+                <Text style={styles.clueLine}>
+                  {countryLabel.replace("{value}", payload.clue.country ?? "-")}
+                </Text>
+                <Text style={styles.clueLine}>
+                  {ccLabel.replace("{value}", String(payload.clue.cc ?? "-"))}
+                </Text>
+                <Text style={styles.clueLine}>
+                  {hpLabel.replace("{value}", String(payload.clue.hp ?? "-"))}
+                </Text>
+                <Text style={styles.clueLine}>
+                  {torqueLabel.replace("{value}", String(payload.clue.torque ?? "-"))}
+                </Text>
+                <Text style={styles.clueLine}>
+                  {specialLabel.replace("{value}", payload.clue.special ?? noSpecialLabel)}
+                </Text>
+              </View>
             </View>
           ) : (
             <ResponsiveImage
               source={payload.partImageUrl}
-              height={220}
+              height={imageHeight}
               borderRadius={18}
               backgroundColor={appColors.surfaceAlt}
+              priority="high"
             />
           )}
         </Card.Content>
@@ -198,9 +242,17 @@ export const GuessCarScreen = ({
               </Button>
             );
           })}
+          <Button
+            mode="contained"
+            onPress={onExitGame}
+            style={styles.exitButton}
+            contentStyle={styles.exitButtonContent}
+            labelStyle={styles.exitButtonLabel}
+          >
+            {exitGameLabel}
+          </Button>
         </Card.Content>
       </Card>
-
     </>
   );
 };
@@ -232,6 +284,14 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     gap: 12,
   },
+  resultMeta: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  resultChip: {
+    backgroundColor: appColors.surfaceAlt,
+  },
   eyebrow: {
     color: appColors.primary,
     fontFamily: fontFamilies.displayBold,
@@ -248,8 +308,19 @@ const styles = StyleSheet.create({
     paddingTop: 2,
     paddingBottom: 4,
   },
+  titleCompact: {
+    fontSize: 30,
+    lineHeight: 34,
+  },
   clues: {
     gap: 8,
+  },
+  clueCard: {
+    gap: 8,
+    borderRadius: 18,
+    backgroundColor: appColors.surfaceAlt,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
   },
   clueLine: {
     color: appColors.inkSoft,
@@ -272,6 +343,35 @@ const styles = StyleSheet.create({
   optionActive: {
     borderRadius: 18,
     backgroundColor: appColors.primary,
+  },
+  exitButton: {
+    borderRadius: 18,
+    backgroundColor: appColors.danger,
+    marginTop: 6,
+  },
+  footerActions: {
+    gap: 10,
+    marginTop: 6,
+  },
+  exitButtonContent: {
+    minHeight: 52,
+  },
+  exitButtonLabel: {
+    color: appColors.white,
+  },
+  rematchButton: {
+    borderRadius: 18,
+    backgroundColor: appColors.accent,
+  },
+  rematchButtonLabel: {
+    color: appColors.ink,
+  },
+  leaveButton: {
+    borderRadius: 18,
+    borderColor: appColors.ice,
+  },
+  leaveButtonLabel: {
+    color: appColors.inkSoft,
   },
   optionContent: {
     minHeight: 58,

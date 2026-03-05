@@ -34,30 +34,40 @@ export const BottomNav = ({
 }: BottomNavProps) => {
   const [containerWidth, setContainerWidth] = useState(0);
   const activeTranslateX = useRef(new Animated.Value(0)).current;
-  void sellLabel;
-  void updatesLabel;
-  void gamesLabel;
-  void profileLabel;
+  const hasPositionedActiveBubble = useRef(false);
+  const tabLabels = {
+    SELL: sellLabel,
+    UPDATES: updatesLabel,
+    GAMES: gamesLabel,
+    PROFILE: profileLabel,
+  };
   const activeIndex = tabs.findIndex((tab) => tab.id === activeTab);
   const navInnerWidth = Math.max(containerWidth - SHELL_HORIZONTAL_PADDING * 2, 0);
   const slotWidth = navInnerWidth > 0 ? navInnerWidth / tabs.length : 0;
+  const targetTranslateX =
+    SHELL_HORIZONTAL_PADDING +
+    activeIndex * slotWidth +
+    slotWidth / 2 -
+    ACTIVE_BUBBLE_SIZE / 2;
 
   useEffect(() => {
     if (slotWidth <= 0) {
       return;
     }
 
+    if (!hasPositionedActiveBubble.current) {
+      activeTranslateX.setValue(targetTranslateX);
+      hasPositionedActiveBubble.current = true;
+      return;
+    }
+
     Animated.spring(activeTranslateX, {
-      toValue:
-        SHELL_HORIZONTAL_PADDING +
-        activeIndex * slotWidth +
-        slotWidth / 2 -
-        ACTIVE_BUBBLE_SIZE / 2,
+      toValue: targetTranslateX,
       useNativeDriver: true,
       bounciness: 0,
       speed: 16,
     }).start();
-  }, [activeIndex, activeTranslateX, slotWidth]);
+  }, [activeTranslateX, slotWidth, targetTranslateX]);
 
   return (
     <View style={styles.wrapper}>
@@ -92,6 +102,9 @@ export const BottomNav = ({
                 key={tab.id}
                 onPress={() => onTabChange(tab.id)}
                 style={styles.tab}
+                accessibilityRole="button"
+                accessibilityLabel={tabLabels[tab.id]}
+                accessibilityState={{ selected: isActive }}
               >
                 <Icon
                   source={tab.icon}

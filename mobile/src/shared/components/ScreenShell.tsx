@@ -1,30 +1,29 @@
-import type { PropsWithChildren, ReactNode } from "react";
+import type { PropsWithChildren } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, type Edge } from "react-native-safe-area-context";
 
 import { appColors } from "../theme/paperTheme";
 
 type ScreenShellProps = PropsWithChildren<{
-  footer?: ReactNode;
   scrollEnabled?: boolean;
+  padded?: boolean;
+  safeAreaEdges?: Edge[];
 }>;
 
 export const ScreenShell = ({
   children,
-  footer,
   scrollEnabled = true,
+  padded = true,
+  safeAreaEdges = ["top", "left", "right"],
 }: ScreenShellProps) => (
-  <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
+  <SafeAreaView style={styles.safeArea} edges={safeAreaEdges}>
     <View style={styles.background}>
       <View style={styles.blobTop} />
       <View style={styles.blobMiddle} />
       <View style={styles.blobBottom} />
       {scrollEnabled ? (
         <ScrollView
-          contentContainerStyle={[
-            styles.content,
-            footer ? styles.contentWithFooter : null,
-          ]}
+          contentContainerStyle={[styles.content, !padded ? styles.contentUnpadded : null]}
           scrollEnabled
           bounces
           alwaysBounceVertical
@@ -32,11 +31,16 @@ export const ScreenShell = ({
           {children}
         </ScrollView>
       ) : (
-        <View style={[styles.content, styles.staticContent]}>
+        <View
+          style={[
+            styles.content,
+            styles.staticContent,
+            !padded ? styles.contentUnpadded : null,
+          ]}
+        >
           {children}
         </View>
       )}
-      {footer ? <View style={styles.footerLayer}>{footer}</View> : null}
     </View>
   </SafeAreaView>
 );
@@ -56,17 +60,13 @@ const styles = StyleSheet.create({
     paddingVertical: 20,
     gap: 20,
   },
+  contentUnpadded: {
+    paddingHorizontal: 0,
+    paddingVertical: 0,
+    gap: 0,
+  },
   staticContent: {
     flex: 1,
-  },
-  contentWithFooter: {
-    flexGrow: 1,
-    paddingBottom: 120,
-  },
-  footerLayer: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: "flex-end",
-    pointerEvents: "box-none",
   },
   blobTop: {
     position: "absolute",

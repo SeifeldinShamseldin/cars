@@ -21,16 +21,17 @@
 │   ├── App.tsx
 │   ├── shared/types/
 │   └── src/
-│       ├── app/
 │       ├── features/
 │       └── shared/
 └── server/
+    ├── prisma/
     ├── shared/types/
+    ├── sqlite/
     └── src/
-        ├── config/
+        ├── admin/
         ├── core/
         ├── data/
-        └── utils/
+        └── scripts/
 ```
 
 ## Event Contract Overview
@@ -46,36 +47,37 @@
 
 - Launch is the only local/static experience on mobile.
 - All catalog content after launch is backend-driven over HTTP, not Socket.IO.
-- Top-tab preload:
-  - `GET /api/home/sell-cars`
-  - `GET /api/home/new-cars`
+- Bootstrap preload:
+  - `GET /api/home`
+  - returns featured sell cars, featured update cars, first sell page, first update page
 - Paginated list feeds:
-  - `GET /api/sell-cars?offset=0&limit=20`
-  - `GET /api/new-cars?offset=0&limit=20`
-- Dynamic detail:
-  - `GET /api/cars/:id`
+  - `GET /api/sell-cars?offset=20&limit=20`
+  - `GET /api/new-cars?offset=20&limit=20`
+- Reference preload:
+  - `GET /api/reference/cars`
+  - returns brands and grouped models for local filter/search state
+- Seller request action:
+  - `POST /api/sell-cars/{listingId}/request-sell-car`
+  - marks a seller feature request as pending for admin review
 - Catalog images are served by the backend from `/assets/catalog/*`.
 - Mobile caches:
-  - top sell/update slices in memory during launch-to-app
-  - paginated list pages per category in memory
-  - opened car details by `id` in memory
+  - bootstrap home payload in memory during launch-to-app
+  - reference brands/models payload in memory for the current session
+  - paginated list pages per category in memory, including appended page 2/page 3/etc for the current session
+  - car detail overlays are resolved directly from cached catalog items by `id`
 
 ## Current Mobile Structure
 
 ```text
 mobile/src/
-  app/
-    hooks/
-      useAppScreenProps.ts
-      useLaunchTransition.ts
-      useOverlayTransition.ts
-      usePreRoomFlow.ts
-      useProfileState.ts
-      useSocketLifecycle.ts
-    MountedTabs.tsx
-    PreRoomStack.tsx
-    RoomContent.tsx
   features/
+    catalog/
+      components/
+        CarDetailScreen.tsx
+        CarsCatalogFeed.tsx
+        CarsHeroScreen.tsx
+        CatalogHeader.tsx
+        CatalogSearchOverlay.tsx
     launch/
       screens/
     sellcar/
@@ -95,23 +97,31 @@ mobile/src/
     components/
       BackArrow.tsx
       BottomNav.tsx
-      CarDetailScreen.tsx
-      CarsCatalogFeed.tsx
-      CarsHeroScreen.tsx
-      CatalogHeader.tsx
       CountdownPill.tsx
       ResponsiveImage.tsx
       ScreenShell.tsx
-      SwipeBackOverlay.tsx
     hooks/
       useCarCatalog.ts
       useCarsCatalogFeed.ts
       useCountdown.ts
+      useLaunchTransition.ts
       useLoopingCarousel.ts
+      useOverlayTransition.ts
+      usePreRoomFlow.ts
+      useProfileState.ts
+      useSocketLifecycle.ts
     lib/
+      catalogFeedMappers.ts
+      catalogFilters.ts
+      catalogPresentation.ts
+      catalogSearchOverlay.ts
+      imagePipeline.ts
     store/
       actions.ts
       appStore.ts
+      catalogStore.helpers.ts
+      catalogStore.ts
+      catalogStore.types.ts
       selectors.ts
       slices/
         guessCarSlice.ts
@@ -152,16 +162,19 @@ mobile/src/
 
 ## Mobile Rendering Notes
 
-- `App.tsx` remains the app entrypoint, but large render layers are split into `mobile/src/app/*`.
-- App-side orchestration hooks live in `mobile/src/app/hooks/*`.
-- Screen prop wiring is centralized in `mobile/src/app/hooks/useAppScreenProps.ts` so `App.tsx` mainly composes flows.
-- Shared catalog behavior lives in `mobile/src/shared/hooks/*`.
-- Shared UI primitives and reusable catalog UI live in `mobile/src/shared/components/*` and are intended to stay dumb.
+- `App.tsx` is the only app entrypoint and top-level composition layer.
+- There is no separate `mobile/src/app/*` layer anymore.
+- Feature screens stay close to their feature folders.
+- Catalog cache state and fetch actions live in Zustand under `mobile/src/shared/store/*`.
+- Shared catalog hooks in `mobile/src/shared/hooks/*` act as view-model/orchestration layers over the store and API layer.
+- Catalog-only render UI lives under `mobile/src/features/catalog/components/*`.
+- Only truly reusable cross-app UI stays in `mobile/src/shared/components/*`.
 - Image rendering is centralized in `mobile/src/shared/components/ResponsiveImage.tsx`.
 - Looping carousel behavior is centralized in `mobile/src/shared/hooks/useLoopingCarousel.ts`.
 - Zustand access is split between:
   - `mobile/src/shared/store/actions.ts`
   - `mobile/src/shared/store/appStore.ts`
+  - `mobile/src/shared/store/catalogStore.ts`
   - `mobile/src/shared/store/slices/*`
   - `mobile/src/shared/store/selectors.ts`
 - Main tabs stay mounted so tab switching does not remount the whole screen tree.
@@ -173,33 +186,40 @@ mobile/src/
 ## Catalog Refresh Rules
 
 - Lists keep current cached data visible while refreshing.
-- Manual pull-to-refresh is supported on car catalog feeds.
-- Manual refresh cooldown: `30s`
-  - first pull triggers an API call
-  - repeated pulls inside 30 seconds do not call the API again
-- Automatic stale refresh runs in background after `2 min`
+- No manual pull-to-refresh is used for catalog feeds.
+- Automatic stale refresh runs in background after `30 sec`
   - only for catalog data
+  - uses `GET /api/home` to refresh the bootstrap payload and first page cache
   - does not clear the current UI first
 - Hero car sections and detail galleries use a looping carousel with swipe-follow indicators.
-- Refresh replaces page 1 for the relevant section so:
+- Refresh replaces page 1 for both sell and update sections so:
   - removed items disappear
   - changed items update
   - new items appear
+- Cached older feed pages are dropped on refresh so moderation and visibility changes are always accurate.
 
 ## Backend Status
 
 - Backend is still a single deployable modular Node service.
 - Current backend structure:
   - `server/src/index.ts` for HTTP/bootstrap
+  - `server/src/admin/*` for admin-only listing, update, and DB tooling
   - `server/src/core/socket/registerHandlers.ts` for Socket.IO wiring
   - `server/src/core/rooms/*` for room state ownership
   - `server/src/core/games/*` for game orchestration
-  - `server/src/data/demoCars.ts` for demo catalog/question data
-- Planned next backend cleanup direction is a modular monolith split into:
-  - `catalog`
-  - `game`
-  - `room`
-  - thin HTTP bootstrap helpers
+  - `server/src/data/catalogSqlite.ts` for SQLite-backed catalog/reference reads
+  - `server/src/data/demoCars.ts` for game/demo question data
+  - `server/src/scripts/seedSqlite.ts` for rebuilding the local SQLite catalog database
+- SQLite is now the source of truth for:
+  - `car_brands`
+  - `car_models`
+  - `sellers`
+  - `car_listings`
+  - `car_updates`
+- Admin tooling runs on the same backend and is browser-based:
+  - `/admin/listings`
+  - `/admin/updates`
+  - `/admin/db`
 - No microservice split is planned yet.
 
 ## Game Rules

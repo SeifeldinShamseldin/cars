@@ -1,5 +1,5 @@
-import { StyleSheet } from "react-native";
-import { Card, Text } from "react-native-paper";
+import { StyleSheet, useWindowDimensions, View } from "react-native";
+import { Button, Card, Chip, Text } from "react-native-paper";
 import type {
   ImposterRoundEndedResults,
   ImposterRoundStartedPayload,
@@ -11,53 +11,92 @@ import { fontFamilies } from "../../../shared/theme/typography";
 
 type ImposterScreenProps = {
   payload?: ImposterRoundStartedPayload;
-  round: number;
   roundEndsAt?: number;
+  isHost: boolean;
   results?: ImposterRoundEndedResults;
   roomClosesAt?: number;
   eyebrow: string;
   roundTitle: string;
+  exitGameLabel: string;
+  rematchLabel: string;
+  leaveRoomLabel: string;
   waitingLabel: string;
   timeLeftLabel: string;
   roomClosesLabel: string;
   imposterRevealLabel: string;
   normalImageLabel: string;
   imposterImageLabel: string;
+  onExitGame: () => void;
+  onRematchGame: () => void;
+  onLeaveRoom: () => void;
 };
 
 export const ImposterScreen = ({
   payload,
-  round,
   roundEndsAt,
+  isHost,
   results,
   roomClosesAt,
   eyebrow,
   roundTitle,
+  exitGameLabel,
+  rematchLabel,
+  leaveRoomLabel,
   waitingLabel,
   timeLeftLabel,
   roomClosesLabel,
   imposterRevealLabel,
   normalImageLabel,
   imposterImageLabel,
-}: ImposterScreenProps) => (
+  onExitGame,
+  onRematchGame,
+  onLeaveRoom,
+}: ImposterScreenProps) => {
+  const { width } = useWindowDimensions();
+  const isCompact = width < 390;
+  const imageHeight = isCompact ? 190 : 230;
+
+  return (
   <>
     <Card mode="elevated" style={styles.heroCard}>
       <Card.Content style={styles.heroSection}>
-        <Text style={styles.eyebrow}>{eyebrow}</Text>
-        <Text style={styles.title}>{roundTitle}</Text>
-        <CountdownPill targetTime={roundEndsAt} label={timeLeftLabel} />
+        <View style={styles.topRow}>
+          <Text style={styles.eyebrow}>{eyebrow}</Text>
+          {roundEndsAt ? (
+            <CountdownPill targetTime={roundEndsAt} label={timeLeftLabel} />
+          ) : null}
+        </View>
+        <Text style={[styles.title, isCompact && styles.titleCompact]}>{roundTitle}</Text>
         {payload ? (
           <>
-            <ResponsiveImage source={payload.imageUrl} height={230} borderRadius={18} />
-            <Text variant="bodyLarge" style={styles.prompt}>
-              {payload.prompt}
-            </Text>
+            <ResponsiveImage
+              source={payload.imageUrl}
+              height={imageHeight}
+              borderRadius={18}
+              priority="high"
+            />
+            <View style={styles.promptCard}>
+              <Text variant="bodyLarge" style={styles.prompt}>
+                {payload.prompt}
+              </Text>
+            </View>
           </>
         ) : (
-          <Text variant="bodyLarge" style={styles.prompt}>
-            {waitingLabel}
-          </Text>
+          <View style={styles.promptCard}>
+            <Text variant="bodyLarge" style={styles.prompt}>
+              {waitingLabel}
+            </Text>
+          </View>
         )}
+        <Button
+          mode="contained"
+          onPress={onExitGame}
+          style={styles.exitButton}
+          contentStyle={styles.exitButtonContent}
+          labelStyle={styles.exitButtonLabel}
+        >
+          {exitGameLabel}
+        </Button>
       </Card.Content>
     </Card>
 
@@ -67,22 +106,56 @@ export const ImposterScreen = ({
           <Text style={styles.sectionTitle}>
             {imposterRevealLabel.replace("{name}", results.imposterNickname)}
           </Text>
-          <Text variant="bodyMedium" style={styles.metaText}>
+          <Chip compact style={styles.metaChip}>
             {normalImageLabel}
-          </Text>
-          <ResponsiveImage source={results.normalCarImageUrl} height={230} borderRadius={18} />
-          <Text variant="bodyMedium" style={styles.metaText}>
+          </Chip>
+          <ResponsiveImage
+            source={results.normalCarImageUrl}
+            height={imageHeight}
+            borderRadius={18}
+            priority="high"
+          />
+          <Chip compact style={styles.metaChip}>
             {imposterImageLabel}
-          </Text>
-          <ResponsiveImage source={results.imposterCarImageUrl} height={230} borderRadius={18} />
+          </Chip>
+          <ResponsiveImage
+            source={results.imposterCarImageUrl}
+            height={imageHeight}
+            borderRadius={18}
+            priority="high"
+          />
           {roomClosesAt ? (
             <CountdownPill targetTime={roomClosesAt} label={roomClosesLabel} />
           ) : null}
+          <View style={styles.footerActions}>
+            {roomClosesAt ? (
+              <Button
+                mode="contained"
+                onPress={onRematchGame}
+                style={styles.rematchButton}
+                contentStyle={styles.exitButtonContent}
+                labelStyle={styles.rematchButtonLabel}
+              >
+                {rematchLabel}
+              </Button>
+            ) : null}
+            {roomClosesAt ? (
+              <Button
+                mode="outlined"
+                onPress={onLeaveRoom}
+                style={styles.leaveButton}
+                labelStyle={styles.leaveButtonLabel}
+              >
+                {leaveRoomLabel}
+              </Button>
+            ) : null}
+          </View>
         </Card.Content>
       </Card>
     ) : null}
   </>
-);
+  );
+};
 
 const styles = StyleSheet.create({
   heroCard: {
@@ -105,6 +178,12 @@ const styles = StyleSheet.create({
   section: {
     gap: 14,
   },
+  topRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: 12,
+  },
   eyebrow: {
     color: appColors.primary,
     fontFamily: fontFamilies.displayBold,
@@ -120,6 +199,10 @@ const styles = StyleSheet.create({
     paddingTop: 2,
     paddingBottom: 4,
   },
+  titleCompact: {
+    fontSize: 30,
+    lineHeight: 34,
+  },
   sectionTitle: {
     color: appColors.ink,
     fontSize: 24,
@@ -129,11 +212,47 @@ const styles = StyleSheet.create({
     paddingTop: 2,
     paddingBottom: 2,
   },
+  promptCard: {
+    borderRadius: 18,
+    backgroundColor: appColors.surfaceAlt,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
   prompt: {
     color: appColors.inkSoft,
     lineHeight: 22,
   },
-  metaText: {
+  metaChip: {
+    alignSelf: "flex-start",
+    backgroundColor: appColors.surfaceAlt,
+  },
+  exitButton: {
+    borderRadius: 18,
+    backgroundColor: appColors.danger,
+    marginTop: 6,
+  },
+  footerActions: {
+    gap: 10,
+    marginTop: 6,
+  },
+  exitButtonContent: {
+    minHeight: 52,
+  },
+  exitButtonLabel: {
+    color: appColors.white,
+  },
+  rematchButton: {
+    borderRadius: 18,
+    backgroundColor: appColors.accent,
+  },
+  rematchButtonLabel: {
+    color: appColors.ink,
+  },
+  leaveButton: {
+    borderRadius: 18,
+    borderColor: appColors.ice,
+  },
+  leaveButtonLabel: {
     color: appColors.inkSoft,
   },
 });

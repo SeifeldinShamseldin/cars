@@ -13,6 +13,43 @@ export type InternalPlayer = PlayerPublic & {
   disconnectedAt?: number;
 };
 
+export type AdminRoomPlayerSnapshot = {
+  id: string;
+  nickname: string;
+  joinedAt: number;
+  connected: boolean;
+  disconnectedAt?: number;
+  isHost: boolean;
+};
+
+export type AdminRoomSnapshot = {
+  roomCode: string;
+  hostId: string;
+  gameType: GameType;
+  status: RoomStatus;
+  round: number;
+  version: number;
+  createdAt: number;
+  updatedAt: number;
+  roundEndsAt?: number;
+  roomClosesAt?: number;
+  cleanupExpiresAt?: number;
+  hostReconnectExpiresAt?: number;
+  roomCloseExpiresAt?: number;
+  activeRoundKind?: ActiveRound["kind"];
+  nextRoundStartsAt?: number;
+  playerCount: number;
+  connectedCount: number;
+  players: AdminRoomPlayerSnapshot[];
+};
+
+export type AdminRoomMonitorSnapshot = {
+  activeRoomCount: number;
+  totalPlayerCount: number;
+  connectedPlayerCount: number;
+  rooms: AdminRoomSnapshot[];
+};
+
 export type GuessCarActiveRound = {
   kind: "GUESS_CAR";
   round: number;
@@ -64,8 +101,11 @@ export type InternalRoom = {
   createdAt: number;
   updatedAt: number;
   cleanupTimer?: NodeJS.Timeout;
+  cleanupExpiresAt?: number;
   hostReconnectTimer?: NodeJS.Timeout;
+  hostReconnectExpiresAt?: number;
   roomCloseTimer?: NodeJS.Timeout;
+  roomCloseExpiresAt?: number;
   activeRound?: ActiveRound;
   roundResults: Array<{
     round: number;

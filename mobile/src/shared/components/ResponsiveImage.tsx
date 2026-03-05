@@ -1,5 +1,10 @@
 import { StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
-import { Image, type ImageContentFit, type ImageSource } from "expo-image";
+import {
+  Image,
+  type ImageContentFit,
+  type ImageProps,
+  type ImageSource,
+} from "expo-image";
 
 type ResponsiveImageProps = {
   source: ImageSource | string;
@@ -8,6 +13,26 @@ type ResponsiveImageProps = {
   contentFit?: ImageContentFit;
   containerStyle?: StyleProp<ViewStyle>;
   backgroundColor?: string;
+  priority?: NonNullable<ImageProps["priority"]>;
+  cachePolicy?: NonNullable<ImageProps["cachePolicy"]>;
+  transitionMs?: number | null;
+};
+
+const getRemoteImageUri = (source: ImageSource | string): string | undefined => {
+  if (typeof source === "string") {
+    return source.startsWith("http://") || source.startsWith("https://")
+      ? source
+      : undefined;
+  }
+
+  if (source && typeof source === "object" && "uri" in source) {
+    return typeof source.uri === "string" &&
+      (source.uri.startsWith("http://") || source.uri.startsWith("https://"))
+      ? source.uri
+      : undefined;
+  }
+
+  return undefined;
 };
 
 export const ResponsiveImage = ({
@@ -17,6 +42,9 @@ export const ResponsiveImage = ({
   contentFit = "contain",
   containerStyle,
   backgroundColor = "transparent",
+  priority = "normal",
+  cachePolicy = "memory-disk",
+  transitionMs = 0,
 }: ResponsiveImageProps) => (
   <View
     style={[
@@ -34,7 +62,10 @@ export const ResponsiveImage = ({
       style={styles.image}
       contentFit={contentFit}
       contentPosition="center"
-      transition={120}
+      cachePolicy={cachePolicy}
+      priority={priority}
+      recyclingKey={getRemoteImageUri(source)}
+      transition={transitionMs}
     />
   </View>
 );

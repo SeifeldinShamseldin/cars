@@ -2,6 +2,7 @@ import type {
   ClientToServerEvents,
   ErrorPayload,
   GameEndedPayload,
+  GameType,
   GameStartedPayload,
   ImposterRoundStartedPayload,
   RoundEndedPayload,
@@ -10,7 +11,14 @@ import type {
 } from "../../../shared/types/domain";
 import { EVENTS } from "../../../shared/types/events";
 import {
+  CREATE_ROOM_RATE_LIMIT_MAX_PER_IP,
+  CREATE_ROOM_RATE_LIMIT_WINDOW_MS,
+  EXPLICIT_EMPTY_ROOM_TTL_MS,
   INTERMISSION_MS,
+  INVALID_COMMAND_MAX_STRIKES,
+  INVALID_COMMAND_WINDOW_MS,
+  JOIN_OR_SYNC_RATE_LIMIT_MAX_PER_IP,
+  JOIN_OR_SYNC_RATE_LIMIT_WINDOW_MS,
   MAX_PLAYERS,
   MIN_PLAYERS_IMPOSTER,
   RATE_LIMIT_MAX_COMMANDS,
@@ -27,6 +35,12 @@ import {
   hasStringField,
   isRecord,
 } from "../../utils/validation";
+import {
+  ensureRoomAuditSchema,
+  getRecentRoomAuditEvents,
+  recordRoomAuditEvent,
+  type AdminRoomsDashboard,
+} from "../../admin/rooms/service";
 import { buildGuessQuestion, buildImposterImages } from "./questionFactory";
 import { RoomManager } from "../rooms/roomManager";
 import type {
@@ -45,14 +59,47 @@ type RateLimitState = {
   resetAt: number;
 };
 
+type InvalidCommandState = {
+  count: number;
+  resetAt: number;
+};
+
 export class GameService {
   private readonly roomManager = new RoomManager();
 
   private readonly rateLimits = new Map<string, RateLimitState>();
 
-  public constructor(private readonly io: TypedServer) {}
+  private readonly ipRateLimits = new Map<string, RateLimitState>();
+
+  private readonly invalidCommandCounts = new Map<string, InvalidCommandState>();
+
+  public constructor(private readonly io: TypedServer) {
+    ensureRoomAuditSchema();
+  }
+
+  public getAdminRoomMonitorSnapshot() {
+    return this.roomManager.getAdminMonitorSnapshot();
+  }
+
+  public getAdminRoomsDashboard(): AdminRoomsDashboard {
+    return {
+      live: this.roomManager.getAdminMonitorSnapshot(),
+      recentEvents: getRecentRoomAuditEvents(120),
+    };
+  }
 
   public handleRoomCreate(socket: TypedSocket, payload: unknown): void {
+    if (
+      !this.consumeScopedIpRateLimit(
+        socket,
+        "room.create",
+        CREATE_ROOM_RATE_LIMIT_WINDOW_MS,
+        CREATE_ROOM_RATE_LIMIT_MAX_PER_IP,
+      )
+    ) {
+      return;
+    }
+
     if (this.roomManager.getSocketBinding(socket.id)) {
       this.emitError(socket, "SOCKET_ALREADY_BOUND", "This socket is already attached to a room.");
       return;
@@ -64,13 +111,23 @@ export class GameService {
     }
 
     const nickname = asTrimmedString(payload.nickname);
+    const requestedGameType = this.parseInitialGameType(payload.gameType);
     if (!nickname) {
       this.emitError(socket, "INVALID_CREATE", "Nickname is required.");
       return;
     }
+    if (payload.gameType !== undefined && !requestedGameType) {
+      this.emitError(socket, "INVALID_CREATE", "Game type is invalid.");
+      return;
+    }
 
-    const { room, player, hostKey } = this.roomManager.createRoom(nickname, socket.id);
+    const { room, player, hostKey } = this.roomManager.createRoom(
+      nickname,
+      socket.id,
+      requestedGameType ?? "NONE",
+    );
     socket.join(room.roomCode);
+    this.auditRoomEvent(room, "ROOM_CREATED", { player });
     socket.emit(EVENTS.S2C.ROOM_CREATED, {
       roomState: this.roomManager.toPublicRoomState(room),
       playerToken: player.playerToken,
@@ -79,6 +136,17 @@ export class GameService {
   }
 
   public handleRoomJoin(socket: TypedSocket, payload: unknown): void {
+    if (
+      !this.consumeScopedIpRateLimit(
+        socket,
+        "room.join",
+        JOIN_OR_SYNC_RATE_LIMIT_WINDOW_MS,
+        JOIN_OR_SYNC_RATE_LIMIT_MAX_PER_IP,
+      )
+    ) {
+      return;
+    }
+
     if (this.roomManager.getSocketBinding(socket.id)) {
       this.emitError(socket, "SOCKET_ALREADY_BOUND", "This socket is already attached to a room.");
       return;
@@ -118,6 +186,7 @@ export class GameService {
     }
 
     socket.join(roomCode);
+    this.auditRoomEvent(joined.room, "PLAYER_JOINED", { player: joined.player });
     socket.emit(EVENTS.S2C.ROOM_JOINED, {
       roomState: this.roomManager.toPublicRoomState(joined.room),
       playerToken: joined.player.playerToken,
@@ -150,15 +219,42 @@ export class GameService {
     }
 
     socket.leave(roomCode);
+    this.auditRoomEvent(room, "PLAYER_LEFT", { player: removedPlayer });
+
+    if (previousHostId && previousHostId !== room.hostId) {
+      const nextHost = room.players.find((player) => player.id === room.hostId);
+      this.auditRoomEvent(room, "HOST_REASSIGNED", {
+        player: nextHost,
+        reason: "HOST_LEFT_ROOM",
+      });
+    }
 
     if (room.players.length === 0) {
-      this.roomManager.deleteRoom(room.roomCode);
+      this.roomManager.scheduleCleanupWithTtl(
+        room,
+        EXPLICIT_EMPTY_ROOM_TTL_MS,
+        () => {
+          this.deleteRoomWithAudit(room, "EXPLICIT_EMPTY_ROOM");
+        },
+      );
+      this.auditRoomEvent(room, "ROOM_CLEANUP_SCHEDULED", {
+        reason: "EXPLICIT_EMPTY_ROOM",
+        details: {
+          cleanupExpiresAt: room.cleanupExpiresAt,
+        },
+      });
       return;
     }
 
     if (this.roomManager.countConnectedPlayers(room) === 0) {
       this.roomManager.scheduleCleanup(room, () => {
-        this.roomManager.deleteRoom(room.roomCode);
+        this.deleteRoomWithAudit(room, "ALL_PLAYERS_DISCONNECTED");
+      });
+      this.auditRoomEvent(room, "ROOM_CLEANUP_SCHEDULED", {
+        reason: "ALL_PLAYERS_DISCONNECTED",
+        details: {
+          cleanupExpiresAt: room.cleanupExpiresAt,
+        },
       });
     }
 
@@ -172,6 +268,17 @@ export class GameService {
   }
 
   public handleRoomSync(socket: TypedSocket, payload: unknown): void {
+    if (
+      !this.consumeScopedIpRateLimit(
+        socket,
+        "room.sync",
+        JOIN_OR_SYNC_RATE_LIMIT_WINDOW_MS,
+        JOIN_OR_SYNC_RATE_LIMIT_MAX_PER_IP,
+      )
+    ) {
+      return;
+    }
+
     if (
       !isRecord(payload) ||
       !hasStringField(payload, "roomCode", { maxLength: 8 }) ||
@@ -189,6 +296,11 @@ export class GameService {
       return;
     }
 
+    const preSyncRoom = this.roomManager.getRoom(roomCode);
+    const preSyncPlayer = preSyncRoom
+      ? this.roomManager.getPlayerByToken(preSyncRoom, playerToken)
+      : undefined;
+    const wasDisconnected = Boolean(preSyncPlayer && !preSyncPlayer.connected);
     const synced = this.roomManager.syncPlayer(roomCode, playerToken, socket.id);
     if (!synced) {
       this.emitError(socket, "SYNC_FAILED", "Unable to restore room session.");
@@ -196,6 +308,9 @@ export class GameService {
     }
 
     socket.join(roomCode);
+    if (wasDisconnected) {
+      this.auditRoomEvent(synced.room, "PLAYER_RECONNECTED", { player: synced.player });
+    }
     socket.emit(EVENTS.S2C.ROOM_STATE, {
       roomState: this.roomManager.toPublicRoomState(synced.room),
     });
@@ -239,6 +354,10 @@ export class GameService {
     }
 
     this.roomManager.setGameType(room, gameType);
+    this.auditRoomEvent(room, "GAME_SELECTED", {
+      reason: gameType,
+      details: { gameType },
+    });
     this.broadcastRoomUpdate(room);
   }
 
@@ -284,8 +403,83 @@ export class GameService {
     }
 
     this.roomManager.startGame(room);
-    this.broadcastRoomUpdate(room);
+    this.auditRoomEvent(room, "GAME_STARTED", {
+      reason: room.gameType,
+      details: { gameType: room.gameType },
+    });
     this.startNextRound(room);
+  }
+
+  public handleGameExit(socket: TypedSocket, payload: unknown): void {
+    if (
+      !isRecord(payload) ||
+      !hasStringField(payload, "roomCode", { maxLength: 8 }) ||
+      !hasStringField(payload, "hostKey", { maxLength: 96 })
+    ) {
+      this.emitError(socket, "INVALID_GAME_EXIT", "Game exit payload is invalid.");
+      return;
+    }
+
+    const roomCode = asTrimmedString(payload.roomCode)?.toUpperCase();
+    const hostKey = asTrimmedString(payload.hostKey);
+    if (!roomCode || !hostKey) {
+      this.emitError(socket, "INVALID_GAME_EXIT", "Game exit payload is invalid.");
+      return;
+    }
+
+    const room = this.requireHostRoom(socket, roomCode, hostKey);
+    if (!room) {
+      return;
+    }
+
+    if (room.status !== "PLAYING" && room.status !== "CLOSING") {
+      this.emitError(socket, "GAME_EXIT_NOT_AVAILABLE", "Game exit is only available while a game is running.");
+      return;
+    }
+
+    this.roomManager.clearTimers(room);
+    this.auditRoomEvent(room, "ROOM_CLOSED", { reason: "HOST_EXITED" });
+    this.io.to(room.roomCode).emit(EVENTS.S2C.ROOM_CLOSED, {
+      reason: "HOST_EXITED",
+    });
+    this.deleteRoomWithAudit(room, "HOST_EXITED");
+  }
+
+  public handleGameRematch(socket: TypedSocket, payload: unknown): void {
+    if (
+      !isRecord(payload) ||
+      !hasStringField(payload, "roomCode", { maxLength: 8 }) ||
+      !hasStringField(payload, "hostKey", { maxLength: 96 })
+    ) {
+      this.emitError(socket, "INVALID_GAME_REMATCH", "Game rematch payload is invalid.");
+      return;
+    }
+
+    const roomCode = asTrimmedString(payload.roomCode)?.toUpperCase();
+    const hostKey = asTrimmedString(payload.hostKey);
+    if (!roomCode || !hostKey) {
+      this.emitError(socket, "INVALID_GAME_REMATCH", "Game rematch payload is invalid.");
+      return;
+    }
+
+    const room = this.requireHostRoom(socket, roomCode, hostKey);
+    if (!room) {
+      return;
+    }
+
+    if (room.status !== "PLAYING" && room.status !== "CLOSING") {
+      this.emitError(socket, "GAME_REMATCH_NOT_AVAILABLE", "Rematch is only available after a game session.");
+      return;
+    }
+
+    const currentGameType = room.gameType;
+    this.roomManager.clearTimers(room);
+    this.roomManager.setLobby(room, currentGameType);
+    this.auditRoomEvent(room, "ROOM_RETURNED_TO_LOBBY", {
+      reason: "REMATCH",
+      details: { gameType: currentGameType },
+    });
+    this.broadcastRoomUpdate(room);
   }
 
   public handleGameNext(socket: TypedSocket, payload: unknown): void {
@@ -393,6 +587,9 @@ export class GameService {
   }
 
   public handleDisconnect(socket: TypedSocket): void {
+    this.rateLimits.delete(socket.id);
+    this.invalidCommandCounts.delete(socket.id);
+
     const disconnected = this.roomManager.handleDisconnect(socket.id);
     if (!disconnected.room || !disconnected.player) {
       return;
@@ -400,10 +597,17 @@ export class GameService {
 
     const room = disconnected.room;
     const player = disconnected.player;
+    this.auditRoomEvent(room, "PLAYER_DISCONNECTED", { player });
 
     if (this.roomManager.countConnectedPlayers(room) === 0) {
       this.roomManager.scheduleCleanup(room, () => {
-        this.roomManager.deleteRoom(room.roomCode);
+        this.deleteRoomWithAudit(room, "ALL_PLAYERS_DISCONNECTED");
+      });
+      this.auditRoomEvent(room, "ROOM_CLEANUP_SCHEDULED", {
+        reason: "ALL_PLAYERS_DISCONNECTED",
+        details: {
+          cleanupExpiresAt: room.cleanupExpiresAt,
+        },
       });
     }
 
@@ -425,6 +629,10 @@ export class GameService {
         if (nextHost) {
           currentRoom.hostId = nextHost.id;
           currentRoom.hostKey = createSecret();
+          this.auditRoomEvent(currentRoom, "HOST_REASSIGNED", {
+            player: nextHost,
+            reason: "HOST_RECONNECT_EXPIRED",
+          });
           this.sendHostCredentialsIfNeeded(currentRoom, nextHost);
           this.broadcastRoomUpdate(currentRoom);
         }
@@ -448,6 +656,34 @@ export class GameService {
 
     if (existing.count >= RATE_LIMIT_MAX_COMMANDS) {
       this.emitError(socket, "RATE_LIMITED", "Too many commands. Slow down.");
+      return false;
+    }
+
+    existing.count += 1;
+    return true;
+  }
+
+  private consumeScopedIpRateLimit(
+    socket: TypedSocket,
+    scope: string,
+    windowMs: number,
+    maxCount: number,
+  ): boolean {
+    const now = Date.now();
+    const ip = this.getSocketIp(socket);
+    const key = `${scope}:${ip}`;
+    const existing = this.ipRateLimits.get(key);
+
+    if (!existing || existing.resetAt <= now) {
+      this.ipRateLimits.set(key, {
+        count: 1,
+        resetAt: now + windowMs,
+      });
+      return true;
+    }
+
+    if (existing.count >= maxCount) {
+      this.emitError(socket, "RATE_LIMITED", "Too many requests from this network. Slow down.");
       return false;
     }
 
@@ -518,7 +754,6 @@ export class GameService {
     }, ROUND_MAX_MS);
 
     this.roomManager.setActiveRound(room, activeRound);
-    this.broadcastRoomUpdate(room);
 
     const payload: GameStartedPayload = {
       gameType: "GUESS_CAR",
@@ -529,6 +764,7 @@ export class GameService {
 
     if (roundNumber === 1) {
       this.io.to(room.roomCode).emit(EVENTS.S2C.GAME_STARTED, payload);
+      this.broadcastRoomUpdate(room);
       return;
     }
 
@@ -538,6 +774,7 @@ export class GameService {
       payload: question.startedPayload,
     };
     this.io.to(room.roomCode).emit(EVENTS.S2C.ROUND_STARTED, roundPayload);
+    this.broadcastRoomUpdate(room);
   }
 
   private finishGuessRound(room: InternalRoom): void {
@@ -614,6 +851,10 @@ export class GameService {
     if (round >= TOTAL_QUESTIONS) {
       const roomClosesAt = endedAt + ROOM_CLOSE_AFTER_GAME_MS;
       this.roomManager.setClosing(room, roomClosesAt);
+      this.auditRoomEvent(room, "ROOM_CLOSING", {
+        reason: "GAME_FINISHED",
+        details: { roomClosesAt },
+      });
 
       const roundEndedPayload: RoundEndedPayload = {
         round,
@@ -672,7 +913,6 @@ export class GameService {
     }, ROUND_MAX_MS);
 
     this.roomManager.setActiveRound(room, activeRound);
-    this.broadcastRoomUpdate(room);
 
     for (const player of room.players) {
       if (!player.socketId) {
@@ -697,6 +937,8 @@ export class GameService {
         this.io.to(player.socketId).emit(EVENTS.S2C.ROUND_STARTED, roundStartedPayload);
       }
     }
+
+    this.broadcastRoomUpdate(room);
   }
 
   private finishImposterRound(room: InternalRoom): void {
@@ -728,6 +970,10 @@ export class GameService {
     if (round >= TOTAL_QUESTIONS) {
       const roomClosesAt = endedAt + ROOM_CLOSE_AFTER_GAME_MS;
       this.roomManager.setClosing(room, roomClosesAt);
+      this.auditRoomEvent(room, "ROOM_CLOSING", {
+        reason: "GAME_FINISHED",
+        details: { roomClosesAt },
+      });
 
       const roundEndedPayload: RoundEndedPayload = {
         round,
@@ -781,12 +1027,13 @@ export class GameService {
     this.io.to(room.roomCode).emit(EVENTS.S2C.GAME_ENDED, gameEndedPayload);
     this.broadcastRoomUpdate(room);
 
-    room.roomCloseTimer = setTimeout(() => {
+    this.roomManager.scheduleRoomClose(room, roomClosesAt, () => {
+      this.auditRoomEvent(room, "ROOM_CLOSED", { reason: "GAME_FINISHED" });
       this.io.to(room.roomCode).emit(EVENTS.S2C.ROOM_CLOSED, {
         reason: "GAME_FINISHED",
       });
-      this.roomManager.deleteRoom(room.roomCode);
-    }, ROOM_CLOSE_AFTER_GAME_MS);
+      this.deleteRoomWithAudit(room, "GAME_FINISHED");
+    });
   }
 
   private emitLiveStateToPlayer(
@@ -859,5 +1106,73 @@ export class GameService {
   private emitError(socket: TypedSocket, code: string, message: string): void {
     const payload: ErrorPayload = { code, message };
     socket.emit(EVENTS.S2C.ERROR, payload);
+
+    if (!this.shouldCountInvalidCommand(code)) {
+      return;
+    }
+
+    const now = Date.now();
+    const existing = this.invalidCommandCounts.get(socket.id);
+    if (!existing || existing.resetAt <= now) {
+      this.invalidCommandCounts.set(socket.id, {
+        count: 1,
+        resetAt: now + INVALID_COMMAND_WINDOW_MS,
+      });
+      return;
+    }
+
+    existing.count += 1;
+    if (existing.count >= INVALID_COMMAND_MAX_STRIKES) {
+      socket.disconnect(true);
+    }
+  }
+
+  private auditRoomEvent(
+    room: InternalRoom,
+    eventType: Parameters<typeof recordRoomAuditEvent>[0]["eventType"],
+    options?: {
+      player?: InternalPlayer;
+      reason?: string;
+      details?: Record<string, unknown>;
+    },
+  ): void {
+    recordRoomAuditEvent({
+      room,
+      eventType,
+      player: options?.player,
+      reason: options?.reason,
+      details: options?.details,
+    });
+  }
+
+  private deleteRoomWithAudit(room: InternalRoom, reason: string): void {
+    this.auditRoomEvent(room, "ROOM_DELETED", { reason });
+    this.roomManager.deleteRoom(room.roomCode);
+  }
+
+  private shouldCountInvalidCommand(code: string): boolean {
+    return code.startsWith("INVALID_") || code === "RATE_LIMITED";
+  }
+
+  private getSocketIp(socket: TypedSocket): string {
+    const forwarded = socket.handshake.headers["x-forwarded-for"];
+    if (typeof forwarded === "string") {
+      const firstIp = forwarded.split(",")[0]?.trim();
+      if (firstIp) {
+        return firstIp;
+      }
+    }
+
+    return socket.handshake.address;
+  }
+
+  private parseInitialGameType(gameType: unknown): GameType | undefined {
+    if (gameType === undefined) {
+      return undefined;
+    }
+
+    return gameType === "GUESS_CAR" || gameType === "IMPOSTER"
+      ? gameType
+      : undefined;
   }
 }

@@ -6,6 +6,8 @@ import {
 import { createId, createRoomCode, createSecret } from "../../utils/id";
 import type {
   ActiveRound,
+  AdminRoomMonitorSnapshot,
+  AdminRoomSnapshot,
   InternalPlayer,
   InternalRoom,
   PlayerLookup,
@@ -19,7 +21,11 @@ export class RoomManager {
     { roomCode: string; playerId: string }
   >();
 
-  public createRoom(nickname: string, socketId: string): {
+  public createRoom(
+    nickname: string,
+    socketId: string,
+    gameType: GameType = "NONE",
+  ): {
     room: InternalRoom;
     player: InternalPlayer;
     hostKey: string;
@@ -44,7 +50,7 @@ export class RoomManager {
       hostId: player.id,
       hostKey: createSecret(),
       players: [player],
-      gameType: "NONE",
+      gameType,
       status: "LOBBY",
       round: 0,
       version: 1,
@@ -233,9 +239,9 @@ export class RoomManager {
     this.touchRoom(room);
   }
 
-  public setLobby(room: InternalRoom): void {
+  public setLobby(room: InternalRoom, gameType: GameType = "NONE"): void {
     room.status = "LOBBY";
-    room.gameType = "NONE";
+    room.gameType = gameType;
     room.round = 0;
     room.roundEndsAt = undefined;
     room.activeRound = undefined;
@@ -289,6 +295,19 @@ export class RoomManager {
     return room.players.filter((player) => player.connected).length;
   }
 
+  public getAdminMonitorSnapshot(now = Date.now()): AdminRoomMonitorSnapshot {
+    const rooms = [...this.rooms.values()]
+      .map((room) => this.toAdminRoomSnapshot(room, now))
+      .sort((left, right) => right.updatedAt - left.updatedAt);
+
+    return {
+      activeRoomCount: rooms.length,
+      totalPlayerCount: rooms.reduce((sum, room) => sum + room.playerCount, 0),
+      connectedPlayerCount: rooms.reduce((sum, room) => sum + room.connectedCount, 0),
+      rooms,
+    };
+  }
+
   public pickHost(
     room: InternalRoom,
     connectedOnly: boolean,
@@ -299,14 +318,23 @@ export class RoomManager {
   }
 
   public scheduleCleanup(room: InternalRoom, onExpire: () => void): void {
+    this.scheduleCleanupWithTtl(room, EMPTY_ROOM_TTL_MS, onExpire);
+  }
+
+  public scheduleCleanupWithTtl(
+    room: InternalRoom,
+    ttlMs: number,
+    onExpire: () => void,
+  ): void {
     this.cancelCleanup(room);
 
-    if (Number(EMPTY_ROOM_TTL_MS) === 0) {
+    if (Number(ttlMs) === 0) {
       onExpire();
       return;
     }
 
-    room.cleanupTimer = setTimeout(onExpire, EMPTY_ROOM_TTL_MS);
+    room.cleanupExpiresAt = Date.now() + ttlMs;
+    room.cleanupTimer = setTimeout(onExpire, ttlMs);
   }
 
   public cancelCleanup(room: InternalRoom): void {
@@ -314,10 +342,12 @@ export class RoomManager {
       clearTimeout(room.cleanupTimer);
       room.cleanupTimer = undefined;
     }
+    room.cleanupExpiresAt = undefined;
   }
 
   public scheduleHostReconnect(room: InternalRoom, onExpire: () => void): void {
     this.cancelHostReconnect(room);
+    room.hostReconnectExpiresAt = Date.now() + HOST_RECONNECT_GRACE_MS;
     room.hostReconnectTimer = setTimeout(onExpire, HOST_RECONNECT_GRACE_MS);
   }
 
@@ -326,6 +356,25 @@ export class RoomManager {
       clearTimeout(room.hostReconnectTimer);
       room.hostReconnectTimer = undefined;
     }
+    room.hostReconnectExpiresAt = undefined;
+  }
+
+  public scheduleRoomClose(
+    room: InternalRoom,
+    roomClosesAt: number,
+    onExpire: () => void,
+  ): void {
+    this.cancelRoomClose(room);
+    room.roomCloseExpiresAt = roomClosesAt;
+    room.roomCloseTimer = setTimeout(onExpire, Math.max(roomClosesAt - Date.now(), 0));
+  }
+
+  public cancelRoomClose(room: InternalRoom): void {
+    if (room.roomCloseTimer) {
+      clearTimeout(room.roomCloseTimer);
+      room.roomCloseTimer = undefined;
+    }
+    room.roomCloseExpiresAt = undefined;
   }
 
   public deleteRoom(roomCode: string): void {
@@ -348,11 +397,7 @@ export class RoomManager {
   public clearTimers(room: InternalRoom): void {
     this.cancelCleanup(room);
     this.cancelHostReconnect(room);
-
-    if (room.roomCloseTimer) {
-      clearTimeout(room.roomCloseTimer);
-      room.roomCloseTimer = undefined;
-    }
+    this.cancelRoomClose(room);
 
     if (room.activeRound?.timeout) {
       clearTimeout(room.activeRound.timeout);
@@ -369,5 +414,44 @@ export class RoomManager {
   private touchRoom(room: InternalRoom): void {
     room.version += 1;
     room.updatedAt = Date.now();
+  }
+
+  private toAdminRoomSnapshot(room: InternalRoom, now: number): AdminRoomSnapshot {
+    return {
+      roomCode: room.roomCode,
+      hostId: room.hostId,
+      gameType: room.gameType,
+      status: room.status,
+      round: room.round,
+      version: room.version,
+      createdAt: room.createdAt,
+      updatedAt: room.updatedAt,
+      roundEndsAt: room.roundEndsAt,
+      roomClosesAt: room.roomClosesAt,
+      cleanupExpiresAt:
+        room.cleanupExpiresAt && room.cleanupExpiresAt > now ? room.cleanupExpiresAt : undefined,
+      hostReconnectExpiresAt:
+        room.hostReconnectExpiresAt && room.hostReconnectExpiresAt > now
+          ? room.hostReconnectExpiresAt
+          : undefined,
+      roomCloseExpiresAt:
+        room.roomCloseExpiresAt && room.roomCloseExpiresAt > now
+          ? room.roomCloseExpiresAt
+          : undefined,
+      activeRoundKind: room.activeRound?.kind,
+      nextRoundStartsAt: room.activeRound?.nextRoundStartsAt,
+      playerCount: room.players.length,
+      connectedCount: this.countConnectedPlayers(room),
+      players: room.players
+        .map((player) => ({
+          id: player.id,
+          nickname: player.nickname,
+          joinedAt: player.joinedAt,
+          connected: player.connected,
+          disconnectedAt: player.disconnectedAt,
+          isHost: player.id === room.hostId,
+        }))
+        .sort((left, right) => left.joinedAt - right.joinedAt),
+    };
   }
 }

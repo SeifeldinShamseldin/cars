@@ -17,6 +17,7 @@ import {
   createFallbackRoomState,
   initialRoomSlice,
 } from "./slices/roomSlice";
+import { initialSellerAccessSlice } from "./slices/sellerAccessSlice";
 import type { AppStore } from "./types";
 
 type AppStoreSet = Parameters<StateCreator<AppStore>>[0];
@@ -33,9 +34,21 @@ const resetImposterState = () => ({
   imposterResults: undefined,
 });
 
+const resetGameSlicesForLobby = (
+  state: AppStore,
+  roomState: RoomStateEvt["roomState"] | RoomUpdatedEvt["roomState"],
+) =>
+  roomState.status === "LOBBY"
+    ? {
+        ...applyRoomState(state, roomState),
+        ...resetGuessState(),
+        ...resetImposterState(),
+      }
+    : applyRoomState(state, roomState);
+
 const createPlayingRoomState = (
   state: AppStore,
-  gameType: AppStore["gameType"],
+  gameType: GameStartedPayload["gameType"],
   round: number,
   roundEndsAt: number,
 ) => ({
@@ -51,13 +64,21 @@ const createRoundRoomState = (
   state: AppStore,
   round: number,
   roundEndsAt: number,
-) => ({
-  ...(state.roomState ??
-    createFallbackRoomState(state.roomCode ?? "", state.gameType, round)),
-  status: "PLAYING" as const,
-  round,
-  roundEndsAt,
-});
+) => {
+  const fallbackGameType = state.roomState ? state.roomState.gameType : "NONE";
+
+  return {
+    ...(state.roomState ??
+      createFallbackRoomState(
+        state.roomCode ?? "",
+        fallbackGameType,
+        round,
+      )),
+    status: "PLAYING" as const,
+    round,
+    roundEndsAt,
+  };
+};
 
 const applyCreatedRoom = (
   state: AppStore,
@@ -148,7 +169,9 @@ export const createAppStoreActions = (
   set: AppStoreSet,
 ): Pick<
   AppStore,
-  | "setConnection"
+  | "setSellerAccessSession"
+  | "clearSellerAccessSession"
+  | "setSellerProfile"
   | "handleRoomCreated"
   | "handleRoomJoined"
   | "handleRoomState"
@@ -164,7 +187,23 @@ export const createAppStoreActions = (
   | "markGuessSubmitted"
   | "resetSession"
 > => ({
-  setConnection: (isConnected) => set({ isConnected }),
+  setSellerAccessSession: ({ accessToken, refreshToken, phone, hasProfile }) =>
+    set({
+      sellerAccessToken: accessToken,
+      sellerAccessRefreshToken: refreshToken,
+      sellerAccessPhone: phone,
+      hasSellerProfile: hasProfile,
+      sellerProfile: undefined,
+    }),
+
+  clearSellerAccessSession: () => set({ ...initialSellerAccessSlice }),
+
+  setSellerProfile: (sellerProfile) =>
+    set({
+      sellerProfile,
+      sellerAccessPhone: sellerProfile.phone,
+      hasSellerProfile: true,
+    }),
 
   handleRoomCreated: ({ roomState, playerToken, hostKey }) =>
     set((state) => applyCreatedRoom(state, roomState, playerToken, hostKey)),
@@ -173,10 +212,10 @@ export const createAppStoreActions = (
     set((state) => applyJoinedRoom(state, roomState, playerToken)),
 
   handleRoomState: ({ roomState }: RoomStateEvt) =>
-    set((state) => applyRoomState(state, roomState)),
+    set((state) => resetGameSlicesForLobby(state, roomState)),
 
   handleRoomUpdated: ({ roomState }: RoomUpdatedEvt) =>
-    set((state) => applyRoomState(state, roomState)),
+    set((state) => resetGameSlicesForLobby(state, roomState)),
 
   handleGameStarted: (payload) => set((state) => applyStartedGame(state, payload)),
 
@@ -187,7 +226,6 @@ export const createAppStoreActions = (
   handleGameEnded: (payload) =>
     set((state) => ({
       roomClosesAt: payload.roomClosesAt,
-      status: "CLOSING",
       roomState: state.roomState
         ? {
             ...state.roomState,

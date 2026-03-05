@@ -12,12 +12,11 @@ type LobbyScreenProps = {
   eyebrow: string;
   title: string;
   subtitle: string;
+  activeModeLabel: string;
   playersLabel: string;
   hostLabel: string;
   hostControlsLabel: string;
   waitingHostLabel: string;
-  guessLabel: string;
-  imposterLabel: string;
   startRoundsLabel: string;
   waitingText: string;
   leaveRoomLabel: string;
@@ -31,26 +30,17 @@ export const LobbyScreen = ({
   eyebrow,
   title,
   subtitle,
+  activeModeLabel,
   playersLabel,
   hostLabel,
   hostControlsLabel,
   waitingHostLabel,
-  guessLabel,
-  imposterLabel,
   startRoundsLabel,
   waitingText,
   leaveRoomLabel,
   onStartGame,
   onLeaveRoom,
-}: LobbyScreenProps) => {
-  const activeModeLabel =
-    roomState.gameType === "IMPOSTER"
-      ? imposterLabel
-      : roomState.gameType === "GUESS_CAR"
-        ? guessLabel
-        : waitingHostLabel;
-
-  return (
+}: LobbyScreenProps) => (
     <>
       <BackArrow label={leaveRoomLabel} onPress={onLeaveRoom} />
       <View style={styles.heroSection}>
@@ -106,8 +96,7 @@ export const LobbyScreen = ({
         </Card.Content>
       </Card>
     </>
-  );
-};
+);
 
 const styles = StyleSheet.create({
   card: {

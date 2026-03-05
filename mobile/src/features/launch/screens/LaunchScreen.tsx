@@ -17,28 +17,10 @@ const topCarImage = require("../../../../assets/images/porsche-911-top.png");
 const launchLogo = require("../../../../assets/images/launch-logo.png");
 
 type LaunchScreenProps = {
-  headline: string;
-  shadow: string;
-  metaLabel: string;
-  metaValue: string;
-  continueLabel: string;
   onContinue: () => void;
 };
 
-export const LaunchScreen = ({
-  headline,
-  shadow,
-  metaLabel,
-  metaValue,
-  continueLabel,
-  onContinue,
-}: LaunchScreenProps) => {
-  void headline;
-  void shadow;
-  void metaLabel;
-  void metaValue;
-  void continueLabel;
-
+export const LaunchScreen = ({ onContinue }: LaunchScreenProps) => {
   const [isAnimating, setIsAnimating] = useState(false);
   const keyOpacity = useRef(new Animated.Value(1)).current;
   const keyScale = useRef(new Animated.Value(1)).current;
@@ -143,7 +125,7 @@ export const LaunchScreen = ({
   };
 
   return (
-    <Pressable style={styles.container} onPress={handlePress}>
+    <Pressable style={styles.container} onPress={handlePress} accessibilityRole="button">
       <View style={styles.hero}>
         <Animated.Text
           style={[

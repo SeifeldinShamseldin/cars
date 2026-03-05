@@ -4,12 +4,16 @@ import type {
 } from "../../../shared/types/domain";
 import { EVENTS } from "../../../shared/types/events";
 import type { Server } from "socket.io";
+import { setSocketServer } from "./catalogRefresh";
 import { GameService } from "../games/gameService";
+import { setActiveGameService } from "../games/runtime";
 
 export const registerHandlers = (
   io: Server<ClientToServerEvents, ServerToClientEvents>,
 ): void => {
+  setSocketServer(io);
   const gameService = new GameService(io);
+  setActiveGameService(gameService);
 
   io.on("connection", (socket) => {
     socket.on(EVENTS.C2S.ROOM_CREATE, (payload) => {
@@ -60,6 +64,22 @@ export const registerHandlers = (
       gameService.handleGameStart(socket, payload);
     });
 
+    socket.on(EVENTS.C2S.GAME_EXIT, (payload) => {
+      if (!gameService.consumeRateLimit(socket)) {
+        return;
+      }
+
+      gameService.handleGameExit(socket, payload);
+    });
+
+    socket.on(EVENTS.C2S.GAME_REMATCH, (payload) => {
+      if (!gameService.consumeRateLimit(socket)) {
+        return;
+      }
+
+      gameService.handleGameRematch(socket, payload);
+    });
+
     socket.on(EVENTS.C2S.GAME_NEXT, (payload) => {
       if (!gameService.consumeRateLimit(socket)) {
         return;
@@ -81,4 +101,3 @@ export const registerHandlers = (
     });
   });
 };
-

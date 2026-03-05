@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Card, Text } from "react-native-paper";
 
 import { appColors } from "../../../../shared/theme/paperTheme";
@@ -6,9 +6,12 @@ import { fontFamilies } from "../../../../shared/theme/typography";
 import type { HubGame } from "../../types";
 
 type GamesHubScreenProps = {
+  eyebrow: string;
   title: string;
   subtitle: string;
+  tipLabel: string;
   tapToPlayLabel: string;
+  goLabel: string;
   cards: Array<{
     id: HubGame;
     title: string;
@@ -18,89 +21,105 @@ type GamesHubScreenProps = {
 };
 
 export const GamesHubScreen = ({
+  eyebrow,
   title,
   subtitle,
+  tipLabel,
   tapToPlayLabel,
+  goLabel,
   cards,
   onOpenGame,
 }: GamesHubScreenProps) => (
   <View style={styles.root}>
-    <View style={styles.heading}>
-      <Text style={styles.eyebrow}>Party modes</Text>
-      <Text style={styles.title}>{title}</Text>
-      <Text style={styles.subtitle}>{subtitle}</Text>
-    </View>
+    <ScrollView
+      style={styles.scroll}
+      contentContainerStyle={styles.scrollContent}
+      showsVerticalScrollIndicator={false}
+    >
+      <View style={styles.heading}>
+        <Text style={styles.eyebrow}>{eyebrow}</Text>
+        <Text style={styles.title}>{title}</Text>
+        <Text style={styles.subtitle}>{subtitle}</Text>
+      </View>
 
-    <View style={styles.tipBanner}>
-      <Text style={styles.tipText}>Choose one of the two live multiplayer modes.</Text>
-    </View>
+      <View style={styles.tipBanner}>
+        <Text style={styles.tipText}>{tipLabel}</Text>
+      </View>
 
-    <View style={styles.grid}>
-      {cards.map((game, index) => {
-        return (
-          <Pressable
-            key={game.id}
-            onPress={() => onOpenGame(game.id)}
-            style={styles.cardPressable}
-          >
-            <Card
-              mode="elevated"
-              style={[styles.card, index === 0 ? styles.cardPrimary : styles.cardNeutral]}
+      <View style={styles.grid}>
+        {cards.map((game, index) => {
+          return (
+            <Pressable
+              key={game.id}
+              onPress={() => onOpenGame(game.id)}
+              style={styles.cardPressable}
             >
-              <Card.Content style={styles.cardContent}>
-                <View style={styles.cardTopRow}>
-                  <View
-                    style={[
-                      styles.cardAccent,
-                      index === 0 ? styles.cardAccentLight : styles.cardAccentDark,
-                    ]}
-                  />
-                  <Text style={[styles.cardIndex, index === 0 && styles.cardIndexActive]}>
-                    0{index + 1}
-                  </Text>
-                </View>
-                <Text
-                  style={[
-                    styles.cardTitle,
-                    index === 0 ? styles.cardTitleLight : styles.cardTitleDark,
-                  ]}
-                >
-                  {game.title}
-                </Text>
-                <Text
-                  variant="bodyMedium"
-                  style={[
-                    styles.cardDescription,
-                    index === 0 ? styles.cardDescriptionLight : styles.cardDescriptionDark,
-                  ]}
-                >
-                  {game.description}
-                </Text>
-                <View style={styles.cardFooter}>
+              <Card
+                mode="elevated"
+                style={[styles.card, index === 0 ? styles.cardPrimary : styles.cardNeutral]}
+              >
+                <Card.Content style={styles.cardContent}>
+                  <View style={styles.cardTopRow}>
+                    <View
+                      style={[
+                        styles.cardAccent,
+                        index === 0 ? styles.cardAccentLight : styles.cardAccentDark,
+                      ]}
+                    />
+                    <Text style={[styles.cardIndex, index === 0 && styles.cardIndexActive]}>
+                      0{index + 1}
+                    </Text>
+                  </View>
                   <Text
                     style={[
-                      styles.cardCta,
+                      styles.cardTitle,
                       index === 0 ? styles.cardTitleLight : styles.cardTitleDark,
                     ]}
                   >
-                    {tapToPlayLabel}
+                    {game.title}
                   </Text>
-                  <View style={[styles.goButton, index === 0 && styles.goButtonLight]}>
-                    <Text style={[styles.goText, index === 0 && styles.goTextLight]}>GO</Text>
+                  <Text
+                    variant="bodyMedium"
+                    style={[
+                      styles.cardDescription,
+                      index === 0 ? styles.cardDescriptionLight : styles.cardDescriptionDark,
+                    ]}
+                  >
+                    {game.description}
+                  </Text>
+                  <View style={styles.cardFooter}>
+                    <Text
+                      style={[
+                        styles.cardCta,
+                        index === 0 ? styles.cardTitleLight : styles.cardTitleDark,
+                      ]}
+                    >
+                      {tapToPlayLabel}
+                    </Text>
+                    <View style={[styles.goButton, index === 0 && styles.goButtonLight]}>
+                      <Text style={[styles.goText, index === 0 && styles.goTextLight]}>
+                        {goLabel}
+                      </Text>
+                    </View>
                   </View>
-                </View>
-              </Card.Content>
-            </Card>
-          </Pressable>
-        );
-      })}
-    </View>
+                </Card.Content>
+              </Card>
+            </Pressable>
+          );
+        })}
+      </View>
+    </ScrollView>
   </View>
 );
 
 const styles = StyleSheet.create({
   root: {
     flex: 1,
+  },
+  scroll: {
+    flex: 1,
+  },
+  scrollContent: {
     gap: 16,
     paddingTop: 4,
     paddingBottom: 8,

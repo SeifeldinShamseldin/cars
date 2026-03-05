@@ -5,18 +5,25 @@ import path from "node:path";
 import { Server } from "socket.io";
 
 import {
-  DEMO_CARS,
-  getCatalogCarById,
-  getCarsByCategory,
-  toCatalogCarDetailDto,
-  toCatalogCarSummaryDto,
   type CarCategory,
 } from "./data/demoCars";
+import { handleAdminAccessRequest } from "./admin/access/routes";
+import { handleAdminCatalogRequest } from "./admin/catalog/routes";
+import { handleAdminDbRequest } from "./admin/db/routes";
+import { handleAdminHomeRequest } from "./admin/home/routes";
+import { handleAdminListingsRequest } from "./admin/listings/routes";
+import { handleAdminRoomsRequest } from "./admin/rooms/routes";
+import { handleAdminUpdatesRequest } from "./admin/updates/routes";
+import { handleSellerAccessRequest } from "./access/routes";
+import { handleSellerListingsRequest } from "./listings/routes";
+import { searchSellCars } from "./listings/searchService";
 import {
-  getCarReferenceBrands,
-  getCarReferenceModelGroups,
-} from "./data/carReference";
+  getCatalogCarsByCategory,
+  getCatalogHomePayload,
+  getCatalogReferenceCatalog,
+} from "./data/catalogSqlite";
 import { registerHandlers } from "./core/socket/registerHandlers";
+import { createOpenApiDocument, renderSwaggerUiHtml } from "./docs/openapi";
 import type {
   ClientToServerEvents,
   ServerToClientEvents,
@@ -38,11 +45,24 @@ const writeJson = (
   res.end(JSON.stringify(payload));
 };
 
+const writeHtml = (
+  res: ServerResponse,
+  statusCode: number,
+  payload: string,
+): void => {
+  res.writeHead(statusCode, {
+    "Content-Type": "text/html; charset=utf-8",
+    "Access-Control-Allow-Origin": "*",
+    "Cache-Control": "no-store",
+  });
+  res.end(payload);
+};
+
 const writeCorsPreflight = (res: ServerResponse): void => {
   res.writeHead(204, {
     "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, x-seller-access-token, x-seller-refresh-token",
   });
   res.end();
 };
@@ -110,26 +130,35 @@ const parseListParams = (requestUrl: URL): { offset: number; limit: number } => 
   };
 };
 
-const getPagedCategoryPayload = (
-  category: CarCategory,
-  baseUrl: string,
-  offset: number,
-  limit: number,
-) => {
-  const allCars = getCarsByCategory(category);
-  const cars = allCars
-    .slice(offset, offset + limit)
-    .map((car) => toCatalogCarSummaryDto(car, baseUrl));
-  const nextOffset = offset + limit < allCars.length ? offset + limit : null;
+const parseOptionalNumberParam = (value: string | null): number | undefined => {
+  if (value === null || value.trim().length === 0) {
+    return undefined;
+  }
 
-  return {
-    cars,
-    total: allCars.length,
-    nextOffset,
-  };
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
 };
 
-const httpServer = createServer((req, res) => {
+const parseSellSearchParams = (requestUrl: URL) => ({
+  q: requestUrl.searchParams.get("q")?.trim() || undefined,
+  brand: requestUrl.searchParams.get("brand")?.trim() || undefined,
+  model: requestUrl.searchParams.getAll("model").map((value) => value.trim()).filter(Boolean),
+  carType: requestUrl.searchParams.get("carType")?.trim() || undefined,
+  priceFrom: parseOptionalNumberParam(requestUrl.searchParams.get("priceFrom")),
+  priceTo: parseOptionalNumberParam(requestUrl.searchParams.get("priceTo")),
+  yearFrom: parseOptionalNumberParam(requestUrl.searchParams.get("yearFrom")),
+  yearTo: parseOptionalNumberParam(requestUrl.searchParams.get("yearTo")),
+  condition: requestUrl.searchParams.get("condition")?.trim() || undefined,
+  transmission: requestUrl.searchParams.get("transmission")?.trim() || undefined,
+  fuelType: requestUrl.searchParams.get("fuelType")?.trim() || undefined,
+  mileageFrom: parseOptionalNumberParam(requestUrl.searchParams.get("mileageFrom")),
+  mileageTo: parseOptionalNumberParam(requestUrl.searchParams.get("mileageTo")),
+});
+
+const handleHttpRequest = async (
+  req: IncomingMessage,
+  res: ServerResponse,
+): Promise<void> => {
   if (!req.url) {
     res.writeHead(400);
     res.end();
@@ -148,6 +177,138 @@ const httpServer = createServer((req, res) => {
   }
 
   const baseUrl = getBaseUrl(req);
+  const openApiUrl = `${baseUrl}/api-docs/openapi.json`;
+
+  if (
+    await handleAdminHomeRequest({
+      req,
+      res,
+      requestUrl,
+      baseUrl,
+      writeHtml,
+    })
+  ) {
+    return;
+  }
+
+  if (
+    await handleAdminAccessRequest({
+      req,
+      res,
+      requestUrl,
+      writeHtml,
+    })
+  ) {
+    return;
+  }
+
+  if (
+    await handleSellerAccessRequest({
+      req,
+      res,
+      requestUrl,
+      writeJson,
+    })
+  ) {
+    return;
+  }
+
+  if (
+    await handleSellerListingsRequest({
+      req,
+      res,
+      requestUrl,
+      baseUrl,
+      writeJson,
+    })
+  ) {
+    return;
+  }
+
+  if (
+    await handleAdminCatalogRequest({
+      req,
+      res,
+      writeJson,
+    })
+  ) {
+    return;
+  }
+
+  if (
+    await handleAdminListingsRequest({
+      req,
+      res,
+      requestUrl,
+      baseUrl,
+      writeHtml,
+      writeJson,
+    })
+  ) {
+    return;
+  }
+
+  if (
+    await handleAdminUpdatesRequest({
+      req,
+      res,
+      requestUrl,
+      baseUrl,
+      writeHtml,
+      writeJson,
+    })
+  ) {
+    return;
+  }
+
+  if (
+    await handleAdminRoomsRequest({
+      req,
+      res,
+      requestUrl,
+      baseUrl,
+      writeHtml,
+    })
+  ) {
+    return;
+  }
+
+  if (
+    await handleAdminDbRequest({
+      req,
+      res,
+      requestUrl,
+      baseUrl,
+      writeHtml,
+      writeJson,
+    })
+  ) {
+    return;
+  }
+
+  if (req.method === "GET" && requestUrl.pathname === "/") {
+    writeJson(res, 200, {
+      name: "Car Party Game server",
+      docsUrl: `${baseUrl}/api-docs`,
+      openApiUrl,
+      adminAccessUrl: `${baseUrl}/admin/access`,
+      adminListingsUrl: `${baseUrl}/admin/listings`,
+      adminUpdatesUrl: `${baseUrl}/admin/updates`,
+      adminDbUrl: `${baseUrl}/admin/db`,
+      adminRoomsUrl: `${baseUrl}/admin/rooms`,
+    });
+    return;
+  }
+
+  if (req.method === "GET" && requestUrl.pathname === "/api-docs") {
+    writeHtml(res, 200, renderSwaggerUiHtml(openApiUrl));
+    return;
+  }
+
+  if (req.method === "GET" && requestUrl.pathname === "/api-docs/openapi.json") {
+    writeJson(res, 200, createOpenApiDocument(baseUrl));
+    return;
+  }
 
   if (
     req.method === "GET" &&
@@ -161,43 +322,34 @@ const httpServer = createServer((req, res) => {
     return;
   }
 
-  if (req.method === "GET" && requestUrl.pathname === "/api/home/sell-cars") {
-    writeJson(res, 200, {
-      cars: getCarsByCategory("SELL")
-        .slice(0, 5)
-        .map((car) => toCatalogCarSummaryDto(car, baseUrl)),
-    });
+  if (req.method === "GET" && requestUrl.pathname === "/api/home") {
+    writeJson(res, 200, getCatalogHomePayload(baseUrl));
     return;
   }
 
-  if (req.method === "GET" && requestUrl.pathname === "/api/reference/car-brands") {
-    writeJson(res, 200, {
-      brands: getCarReferenceBrands(),
-    });
-    return;
-  }
-
-  if (req.method === "GET" && requestUrl.pathname === "/api/reference/car-models") {
-    const brand = requestUrl.searchParams.get("brand") ?? "";
-    writeJson(res, 200, {
-      brand,
-      groups: getCarReferenceModelGroups(brand),
-    });
-    return;
-  }
-
-  if (req.method === "GET" && requestUrl.pathname === "/api/home/new-cars") {
-    writeJson(res, 200, {
-      cars: getCarsByCategory("UPDATE")
-        .slice(0, 5)
-        .map((car) => toCatalogCarSummaryDto(car, baseUrl)),
-    });
+  if (req.method === "GET" && requestUrl.pathname === "/api/reference/cars") {
+    writeJson(res, 200, getCatalogReferenceCatalog());
     return;
   }
 
   if (req.method === "GET" && requestUrl.pathname === "/api/sell-cars") {
     const { offset, limit } = parseListParams(requestUrl);
-    writeJson(res, 200, getPagedCategoryPayload("SELL", baseUrl, offset, limit));
+    writeJson(res, 200, getCatalogCarsByCategory("SELL", baseUrl, offset, limit));
+    return;
+  }
+
+  if (req.method === "GET" && requestUrl.pathname === "/api/sell-cars/search") {
+    const { offset, limit } = parseListParams(requestUrl);
+    writeJson(
+      res,
+      200,
+      searchSellCars({
+        baseUrl,
+        params: parseSellSearchParams(requestUrl),
+        offset,
+        limit,
+      }),
+    );
     return;
   }
 
@@ -206,51 +358,30 @@ const httpServer = createServer((req, res) => {
     writeJson(
       res,
       200,
-      getPagedCategoryPayload("UPDATE", baseUrl, offset, limit),
+      getCatalogCarsByCategory("UPDATE", baseUrl, offset, limit),
     );
-    return;
-  }
-
-  if (req.method === "GET" && requestUrl.pathname.startsWith("/api/cars/")) {
-    const carId = decodeURIComponent(
-      requestUrl.pathname.replace("/api/cars/", ""),
-    );
-    const car = getCatalogCarById(carId);
-
-    if (!car) {
-      writeJson(res, 404, {
-        code: "CAR_NOT_FOUND",
-        message: "Car not found.",
-      });
-      return;
-    }
-
-    writeJson(res, 200, { car: toCatalogCarDetailDto(car, baseUrl) });
-    return;
-  }
-
-  if (req.method === "GET" && requestUrl.pathname === "/api/featured-cars") {
-    writeJson(res, 200, {
-      featuredCars: getCarsByCategory("UPDATE")
-        .slice(0, 5)
-        .map((car) => toCatalogCarSummaryDto(car, baseUrl)),
-      sellCars: getCarsByCategory("SELL")
-        .slice(0, 5)
-        .map((car) => toCatalogCarSummaryDto(car, baseUrl)),
-    });
-    return;
-  }
-
-  if (req.method === "GET" && requestUrl.pathname === "/api/featured-car") {
-    writeJson(res, 200, {
-      featuredCar: toCatalogCarSummaryDto(DEMO_CARS[0], baseUrl),
-    });
     return;
   }
 
   writeJson(res, 404, {
     code: "NOT_FOUND",
     message: "Route not found.",
+  });
+};
+
+const httpServer = createServer((req, res) => {
+  void handleHttpRequest(req, res).catch((error: unknown) => {
+    console.error("HTTP request handling failed", error);
+
+    if (res.headersSent) {
+      res.end();
+      return;
+    }
+
+    writeJson(res, 500, {
+      code: "INTERNAL_ERROR",
+      message: "Internal server error.",
+    });
   });
 });
 

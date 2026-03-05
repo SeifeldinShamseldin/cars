@@ -1,41 +1,90 @@
+import { fetchJson } from "./http";
+
 export type CatalogCategory = "SELL" | "UPDATE";
 
-export type CarSummary = {
+export type CarType =
+  | "SEDAN"
+  | "COUPE"
+  | "SUV"
+  | "HATCHBACK"
+  | "CONVERTIBLE"
+  | "CABRIOLET"
+  | "CROSSOVER"
+  | "WAGON"
+  | "ESTATE"
+  | "PICKUP"
+  | "VAN"
+  | "MINIVAN"
+  | "ROADSTER";
+
+export type Condition = "NEW" | "USED";
+
+export type FuelType =
+  | "PETROL"
+  | "DIESEL"
+  | "HYBRID"
+  | "PLUG_IN_HYBRID"
+  | "ELECTRIC"
+  | "REEV"
+  | "GAS";
+
+export type Transmission = "MANUAL" | "AUTOMATIC";
+
+export type SellerType = "OWNER" | "DEALER";
+export type YesNo = "YES" | "NO";
+
+export type SellCarSummary = {
   id: string;
-  category: CatalogCategory;
   brand: string;
   model: string;
-  type: string;
+  type: CarType;
   year: number;
-  topSpeedKmh: number;
-  torqueNm: number;
-  imageUrl: string;
+  galleryImageUrls: string[];
   description: string;
-  priceValue?: number;
-  priceLabel?: string;
-  condition?: string;
-  fuelType?: string;
-  transmission?: string;
-  trim?: string;
-  color?: string;
-  mileage?: number;
+  priceValue: number;
+  condition: Condition;
+  fuelType: FuelType;
+  transmission: Transmission;
+  mileage: number;
+  rimSizeInches: number;
+  sellerType: SellerType;
+  sellerName: string;
+  telephone: string;
+  postedAt: string;
+  color: string;
+  isNegotiable: YesNo;
+  accidentHistory: YesNo;
 };
 
-export type CarDetail = CarSummary & {
+export type CarUpdateSummary = {
+  id: string;
+  brand: string;
+  model: string;
+  type: CarType;
+  year: number;
   galleryImageUrls: string[];
-  condition?: string;
-  fuelType?: string;
-  transmission?: string;
-  trim?: string;
-  color?: string;
-  mileage?: number;
-  hp?: number;
-  engineLabel?: string;
+  description: string;
+  postedAt: string;
+};
+
+export type CarSummary = SellCarSummary | CarUpdateSummary;
+
+export type CarDetail = CarSummary;
+
+export const isSellCar = (car: CarSummary | CarDetail): car is SellCarSummary =>
+  "priceValue" in car;
+
+export type PaginatedCarsResponse<TCar extends CarSummary = CarSummary> = {
+  cars: TCar[];
+  total: number;
+  nextOffset: number | null;
 };
 
 export type HomeCatalogResponse = {
-  sellCars: CarSummary[];
-  newCars: CarSummary[];
+  featuredCars: CarUpdateSummary[];
+  sellCars: SellCarSummary[];
+  sellFeed: PaginatedCarsResponse<SellCarSummary>;
+  updateFeed: PaginatedCarsResponse<CarUpdateSummary>;
 };
 
 export type CarReferenceModelGroup = {
@@ -43,51 +92,32 @@ export type CarReferenceModelGroup = {
   models: string[];
 };
 
-export type PaginatedCarsResponse = {
-  cars: CarSummary[];
-  total: number;
-  nextOffset: number | null;
+export type CarReferenceCatalog = {
+  brands: string[];
+  modelGroupsByBrand: Record<string, CarReferenceModelGroup[]>;
 };
 
-const SOCKET_URL = process.env.EXPO_PUBLIC_SOCKET_URL ?? "http://localhost:3001";
-const API_BASE_URL = SOCKET_URL.replace(/\/+$/, "");
-
-const fetchJson = async <T>(path: string): Promise<T> => {
-  const response = await fetch(`${API_BASE_URL}${path}`);
-
-  if (!response.ok) {
-    throw new Error(`Failed request ${path} (${response.status})`);
-  }
-
-  return (await response.json()) as T;
+export type SellCarsSearchParams = {
+  query?: string;
+  brand?: string;
+  model?: string[];
+  carType?: string;
+  priceFrom?: number;
+  priceTo?: number;
+  yearFrom?: number;
+  yearTo?: number;
+  condition?: string;
+  transmission?: string;
+  fuelType?: string;
+  mileageFrom?: number;
+  mileageTo?: number;
 };
 
-export const fetchHomeCatalog = async (): Promise<HomeCatalogResponse> => {
-  const [sellResponse, newResponse] = await Promise.all([
-    fetchJson<{ cars: CarSummary[] }>("/api/home/sell-cars"),
-    fetchJson<{ cars: CarSummary[] }>("/api/home/new-cars"),
-  ]);
+export const fetchHomeCatalog = async (): Promise<HomeCatalogResponse> =>
+  fetchJson<HomeCatalogResponse>("/api/home");
 
-  return {
-    sellCars: sellResponse.cars,
-    newCars: newResponse.cars,
-  };
-};
-
-export const fetchCarBrands = async (): Promise<string[]> => {
-  const response = await fetchJson<{ brands: string[] }>("/api/reference/car-brands");
-  return response.brands;
-};
-
-export const fetchCarModelGroups = async (
-  brand: string,
-): Promise<CarReferenceModelGroup[]> => {
-  const response = await fetchJson<{ groups: CarReferenceModelGroup[] }>(
-    `/api/reference/car-models?brand=${encodeURIComponent(brand)}`,
-  );
-
-  return response.groups;
-};
+export const fetchCarReferenceCatalog = async (): Promise<CarReferenceCatalog> =>
+  fetchJson<CarReferenceCatalog>("/api/reference/cars");
 
 export const fetchCarsPage = async (
   category: CatalogCategory,
@@ -101,10 +131,58 @@ export const fetchCarsPage = async (
   );
 };
 
-export const fetchCarDetail = async (carId: string): Promise<CarDetail> => {
-  const response = await fetchJson<{ car: CarDetail }>(
-    `/api/cars/${encodeURIComponent(carId)}`,
-  );
+export const fetchSellCarsSearch = async (
+  params: SellCarsSearchParams,
+  offset = 0,
+  limit = 20,
+): Promise<PaginatedCarsResponse<SellCarSummary>> => {
+  const query = new URLSearchParams();
+  query.set("offset", String(offset));
+  query.set("limit", String(limit));
 
-  return response.car;
+  if (params.query?.trim()) {
+    query.set("q", params.query.trim());
+  }
+  if (params.brand?.trim()) {
+    query.set("brand", params.brand.trim());
+  }
+  for (const model of params.model ?? []) {
+    if (model.trim()) {
+      query.append("model", model.trim());
+    }
+  }
+  if (params.carType?.trim()) {
+    query.set("carType", params.carType.trim());
+  }
+  if (params.priceFrom !== undefined) {
+    query.set("priceFrom", String(params.priceFrom));
+  }
+  if (params.priceTo !== undefined) {
+    query.set("priceTo", String(params.priceTo));
+  }
+  if (params.yearFrom !== undefined) {
+    query.set("yearFrom", String(params.yearFrom));
+  }
+  if (params.yearTo !== undefined) {
+    query.set("yearTo", String(params.yearTo));
+  }
+  if (params.condition?.trim()) {
+    query.set("condition", params.condition.trim());
+  }
+  if (params.transmission?.trim()) {
+    query.set("transmission", params.transmission.trim());
+  }
+  if (params.fuelType?.trim()) {
+    query.set("fuelType", params.fuelType.trim());
+  }
+  if (params.mileageFrom !== undefined) {
+    query.set("mileageFrom", String(params.mileageFrom));
+  }
+  if (params.mileageTo !== undefined) {
+    query.set("mileageTo", String(params.mileageTo));
+  }
+
+  return fetchJson<PaginatedCarsResponse<SellCarSummary>>(
+    `/api/sell-cars/search?${query.toString()}`,
+  );
 };

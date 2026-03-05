@@ -1,5 +1,10 @@
-import { StyleSheet, View } from "react-native";
-import { Button, HelperText, Text, TextInput } from "react-native-paper";
+import {
+  Keyboard,
+  ScrollView,
+  StyleSheet,
+  useWindowDimensions,
+} from "react-native";
+import { Button, Card, Chip, HelperText, Text, TextInput } from "react-native-paper";
 
 import { BackArrow } from "../../../../shared/components/BackArrow";
 import { appColors } from "../../../../shared/theme/paperTheme";
@@ -40,69 +45,96 @@ export const GameEntryScreen = ({
   onCreate,
   onJoin,
 }: GameEntryScreenProps) => {
+  const { width } = useWindowDimensions();
+  const isCompact = width < 390;
+
   return (
-    <View style={styles.screen}>
+    <ScrollView
+      style={styles.scroll}
+      contentContainerStyle={styles.screen}
+      showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="on-drag"
+      onScrollBeginDrag={Keyboard.dismiss}
+    >
       <BackArrow label={backLabel} onPress={onBack} />
-      <View style={styles.hero}>
-        <Text style={styles.eyebrow}>{eyebrow}</Text>
-        <Text style={styles.title}>{title}</Text>
-        <Text style={styles.subtitle}>{note}</Text>
-      </View>
+      <Card mode="elevated" style={styles.heroCard}>
+        <Card.Content style={styles.hero}>
+          <Text style={styles.eyebrow}>{eyebrow}</Text>
+          <Text style={[styles.title, isCompact && styles.titleCompact]}>{title}</Text>
+          <Text style={styles.subtitle}>{note}</Text>
+          <Chip compact style={styles.modeChip}>
+            {joinExistingRoomLabel}
+          </Chip>
+        </Card.Content>
+      </Card>
 
-      <View style={styles.joinBlock}>
-        <Text style={styles.blockLabel}>{joinExistingRoomLabel}</Text>
-        <TextInput
-          mode="flat"
-          label={roomCodeLabel}
-          value={roomCode}
-          autoCapitalize="characters"
-          onChangeText={(value) => onChangeRoomCode(value.toUpperCase())}
-          maxLength={5}
-          style={styles.input}
-          underlineColor="transparent"
-          activeUnderlineColor={appColors.primary}
-        />
-        <HelperText type="info" style={styles.helper}>
-          {joinHelper}
-        </HelperText>
-        <Button
-          mode="contained-tonal"
-          onPress={onJoin}
-          disabled={!roomCode.trim()}
-          contentStyle={styles.secondaryButtonContent}
-          style={styles.secondaryButton}
-        >
-          {joinLabel}
-        </Button>
-      </View>
+      <Card mode="elevated" style={styles.joinBlock}>
+        <Card.Content style={styles.blockContent}>
+          <Text style={styles.blockLabel}>{joinExistingRoomLabel}</Text>
+          <TextInput
+            mode="flat"
+            label={roomCodeLabel}
+            value={roomCode}
+            autoCapitalize="characters"
+            onChangeText={(value) => onChangeRoomCode(value.toUpperCase())}
+            maxLength={5}
+            style={styles.input}
+            underlineColor="transparent"
+            activeUnderlineColor={appColors.primary}
+          />
+          <HelperText type="info" style={styles.helper}>
+            {joinHelper}
+          </HelperText>
+          <Button
+            mode="contained-tonal"
+            onPress={onJoin}
+            disabled={!roomCode.trim()}
+            contentStyle={styles.secondaryButtonContent}
+            style={styles.secondaryButton}
+          >
+            {joinLabel}
+          </Button>
+        </Card.Content>
+      </Card>
 
-      <View style={styles.actionBlock}>
-        <Text style={styles.blockLabel}>{createNewRoomLabel}</Text>
-        <Button
-          mode="contained"
-          onPress={onCreate}
-          contentStyle={styles.primaryButtonContent}
-          style={styles.primaryButton}
-        >
-          {createLabel}
-        </Button>
-      </View>
-
-    </View>
+      <Card mode="elevated" style={styles.actionBlock}>
+        <Card.Content style={styles.blockContent}>
+          <Text style={styles.blockLabel}>{createNewRoomLabel}</Text>
+          <Text style={styles.createHint}>{note}</Text>
+          <Button
+            mode="contained"
+            onPress={onCreate}
+            contentStyle={styles.primaryButtonContent}
+            style={styles.primaryButton}
+          >
+            {createLabel}
+          </Button>
+        </Card.Content>
+      </Card>
+    </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
-  screen: {
+  scroll: {
     flex: 1,
+  },
+  screen: {
     gap: 18,
-    justifyContent: "space-between",
     paddingTop: 10,
     paddingBottom: 8,
   },
+  heroCard: {
+    borderRadius: 28,
+    backgroundColor: appColors.surface,
+    borderWidth: 1,
+    borderColor: appColors.ice,
+  },
   hero: {
     gap: 10,
-    paddingTop: 16,
+    minHeight: 210,
+    justifyContent: "flex-end",
   },
   eyebrow: {
     color: appColors.primary,
@@ -120,6 +152,10 @@ const styles = StyleSheet.create({
     textTransform: "none",
     maxWidth: 220,
   },
+  titleCompact: {
+    fontSize: 36,
+    lineHeight: 38,
+  },
   subtitle: {
     color: appColors.inkSoft,
     fontFamily: fontFamilies.body,
@@ -127,21 +163,24 @@ const styles = StyleSheet.create({
     lineHeight: 23,
     maxWidth: 280,
   },
+  modeChip: {
+    alignSelf: "flex-start",
+    backgroundColor: "rgba(231, 211, 26, 0.14)",
+  },
   actionBlock: {
-    gap: 12,
-    padding: 18,
     borderRadius: 24,
     backgroundColor: appColors.surface,
     borderWidth: 1,
     borderColor: appColors.ice,
   },
   joinBlock: {
-    gap: 10,
-    padding: 18,
     borderRadius: 24,
     backgroundColor: appColors.surfaceAlt,
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.06)",
+  },
+  blockContent: {
+    gap: 12,
   },
   blockLabel: {
     color: appColors.ink,
@@ -156,6 +195,10 @@ const styles = StyleSheet.create({
   helper: {
     color: appColors.inkSoft,
     marginLeft: 0,
+  },
+  createHint: {
+    color: appColors.inkSoft,
+    lineHeight: 20,
   },
   primaryButton: {
     borderRadius: 18,

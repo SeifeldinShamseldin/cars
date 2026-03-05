@@ -7,13 +7,9 @@ export const initialRoomSlice: RoomSlice = {
   roomCode: undefined,
   playerToken: undefined,
   hostKey: undefined,
-  gameType: "NONE",
-  status: "LOBBY",
-  version: 0,
   roundEndsAt: undefined,
   roomClosesAt: undefined,
   lastError: undefined,
-  isConnected: false,
 };
 
 export const applyRoomState = (
@@ -22,9 +18,6 @@ export const applyRoomState = (
 ): Partial<AppStore> => ({
   roomState,
   roomCode: roomState.roomCode,
-  gameType: roomState.gameType,
-  status: roomState.status,
-  version: roomState.version,
   roundEndsAt: roomState.roundEndsAt,
   roomClosesAt:
     roomState.status === "CLOSING" ? state.roomClosesAt : undefined,

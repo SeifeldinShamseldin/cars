@@ -1,7 +1,7 @@
 import {
   type ClientToServerEvents,
-  type GameNextCmd,
-  type GameSelectCmd,
+  type GameExitCmd,
+  type GameRematchCmd,
   type GameStartCmd,
   type GuessSubmitCmd,
   type RoomCreateCmd,
@@ -15,10 +15,10 @@ import { io, type Socket } from "socket.io-client";
 
 type ListenerMap = Partial<{
   [EventName in keyof ServerToClientEvents]: ServerToClientEvents[EventName];
-}> & {
+} & {
   connect: () => void;
   disconnect: () => void;
-};
+}>;
 
 const SOCKET_URL = process.env.EXPO_PUBLIC_SOCKET_URL ?? "http://localhost:3001";
 
@@ -26,6 +26,8 @@ class AppSocketClient {
   private socket?: Socket<ServerToClientEvents, ClientToServerEvents>;
 
   private syncProvider?: () => RoomSyncCmd | undefined;
+
+  private isLeavingRoomSession = false;
 
   public connect(): void {
     const socket = this.getSocket();
@@ -45,24 +47,67 @@ class AppSocketClient {
   public setListeners(listeners: ListenerMap): () => void {
     const socket = this.getSocket();
 
-    const roomCreated = (payload: Parameters<ServerToClientEvents["room.created"]>[0]) =>
+    const shouldIgnoreRoomSessionEvent = () => this.isLeavingRoomSession;
+
+    const roomCreated = (payload: Parameters<ServerToClientEvents["room.created"]>[0]) => {
+      this.isLeavingRoomSession = false;
       listeners[EVENTS.S2C.ROOM_CREATED]?.(payload);
-    const roomJoined = (payload: Parameters<ServerToClientEvents["room.joined"]>[0]) =>
+    };
+    const roomJoined = (payload: Parameters<ServerToClientEvents["room.joined"]>[0]) => {
+      this.isLeavingRoomSession = false;
       listeners[EVENTS.S2C.ROOM_JOINED]?.(payload);
-    const roomState = (payload: Parameters<ServerToClientEvents["room.state"]>[0]) =>
+    };
+    const roomState = (payload: Parameters<ServerToClientEvents["room.state"]>[0]) => {
+      if (shouldIgnoreRoomSessionEvent()) {
+        return;
+      }
+
       listeners[EVENTS.S2C.ROOM_STATE]?.(payload);
-    const roomUpdated = (payload: Parameters<ServerToClientEvents["room.updated"]>[0]) =>
+    };
+    const roomUpdated = (payload: Parameters<ServerToClientEvents["room.updated"]>[0]) => {
+      if (shouldIgnoreRoomSessionEvent()) {
+        return;
+      }
+
       listeners[EVENTS.S2C.ROOM_UPDATED]?.(payload);
-    const roomClosed = (payload: Parameters<ServerToClientEvents["room.closed"]>[0]) =>
+    };
+    const roomClosed = (payload: Parameters<ServerToClientEvents["room.closed"]>[0]) => {
+      if (shouldIgnoreRoomSessionEvent()) {
+        return;
+      }
+
       listeners[EVENTS.S2C.ROOM_CLOSED]?.(payload);
-    const gameStarted = (payload: Parameters<ServerToClientEvents["game.started"]>[0]) =>
+    };
+    const catalogRefresh = (payload: Parameters<ServerToClientEvents["catalog.refresh"]>[0]) =>
+      listeners[EVENTS.S2C.CATALOG_REFRESH]?.(payload);
+    const gameStarted = (payload: Parameters<ServerToClientEvents["game.started"]>[0]) => {
+      if (shouldIgnoreRoomSessionEvent()) {
+        return;
+      }
+
       listeners[EVENTS.S2C.GAME_STARTED]?.(payload);
-    const roundStarted = (payload: Parameters<ServerToClientEvents["round.started"]>[0]) =>
+    };
+    const roundStarted = (payload: Parameters<ServerToClientEvents["round.started"]>[0]) => {
+      if (shouldIgnoreRoomSessionEvent()) {
+        return;
+      }
+
       listeners[EVENTS.S2C.ROUND_STARTED]?.(payload);
-    const roundEnded = (payload: Parameters<ServerToClientEvents["round.ended"]>[0]) =>
+    };
+    const roundEnded = (payload: Parameters<ServerToClientEvents["round.ended"]>[0]) => {
+      if (shouldIgnoreRoomSessionEvent()) {
+        return;
+      }
+
       listeners[EVENTS.S2C.ROUND_ENDED]?.(payload);
-    const gameEnded = (payload: Parameters<ServerToClientEvents["game.ended"]>[0]) =>
+    };
+    const gameEnded = (payload: Parameters<ServerToClientEvents["game.ended"]>[0]) => {
+      if (shouldIgnoreRoomSessionEvent()) {
+        return;
+      }
+
       listeners[EVENTS.S2C.GAME_ENDED]?.(payload);
+    };
     const errored = (payload: Parameters<ServerToClientEvents["error"]>[0]) =>
       listeners[EVENTS.S2C.ERROR]?.(payload);
     const connected = () => {
@@ -82,6 +127,7 @@ class AppSocketClient {
     socket.on(EVENTS.S2C.ROOM_STATE, roomState);
     socket.on(EVENTS.S2C.ROOM_UPDATED, roomUpdated);
     socket.on(EVENTS.S2C.ROOM_CLOSED, roomClosed);
+    socket.on(EVENTS.S2C.CATALOG_REFRESH, catalogRefresh);
     socket.on(EVENTS.S2C.GAME_STARTED, gameStarted);
     socket.on(EVENTS.S2C.ROUND_STARTED, roundStarted);
     socket.on(EVENTS.S2C.ROUND_ENDED, roundEnded);
@@ -96,6 +142,7 @@ class AppSocketClient {
       socket.off(EVENTS.S2C.ROOM_STATE, roomState);
       socket.off(EVENTS.S2C.ROOM_UPDATED, roomUpdated);
       socket.off(EVENTS.S2C.ROOM_CLOSED, roomClosed);
+      socket.off(EVENTS.S2C.CATALOG_REFRESH, catalogRefresh);
       socket.off(EVENTS.S2C.GAME_STARTED, gameStarted);
       socket.off(EVENTS.S2C.ROUND_STARTED, roundStarted);
       socket.off(EVENTS.S2C.ROUND_ENDED, roundEnded);
@@ -105,27 +152,30 @@ class AppSocketClient {
   }
 
   public createRoom(payload: RoomCreateCmd): void {
+    this.isLeavingRoomSession = false;
     this.getSocket().emit(EVENTS.C2S.ROOM_CREATE, payload);
   }
 
   public joinRoom(payload: RoomJoinCmd): void {
+    this.isLeavingRoomSession = false;
     this.getSocket().emit(EVENTS.C2S.ROOM_JOIN, payload);
   }
 
   public leaveRoom(payload: RoomLeaveCmd): void {
+    this.isLeavingRoomSession = true;
     this.getSocket().emit(EVENTS.C2S.ROOM_LEAVE, payload);
-  }
-
-  public selectGame(payload: GameSelectCmd): void {
-    this.getSocket().emit(EVENTS.C2S.GAME_SELECT, payload);
   }
 
   public startGame(payload: GameStartCmd): void {
     this.getSocket().emit(EVENTS.C2S.GAME_START, payload);
   }
 
-  public nextGame(payload: GameNextCmd): void {
-    this.getSocket().emit(EVENTS.C2S.GAME_NEXT, payload);
+  public exitGame(payload: GameExitCmd): void {
+    this.getSocket().emit(EVENTS.C2S.GAME_EXIT, payload);
+  }
+
+  public rematchGame(payload: GameRematchCmd): void {
+    this.getSocket().emit(EVENTS.C2S.GAME_REMATCH, payload);
   }
 
   public submitGuess(payload: GuessSubmitCmd): void {

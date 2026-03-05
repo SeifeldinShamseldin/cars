@@ -1,0 +1,220 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum SellerType {
+  OWNER
+  DEALER
+}
+
+enum BodyType {
+  SEDAN
+  COUPE
+  SUV
+  HATCHBACK
+  CONVERTIBLE
+  CABRIOLET
+  CROSSOVER
+  WAGON
+  ESTATE
+  PICKUP
+  VAN
+  MINIVAN
+  ROADSTER
+}
+
+enum CarCondition {
+  NEW
+  USED
+}
+
+enum FuelType {
+  PETROL
+  DIESEL
+  HYBRID
+  PLUG_IN_HYBRID
+  ELECTRIC
+  REEV
+  GAS
+}
+
+enum Transmission {
+  MANUAL
+  AUTOMATIC
+}
+
+enum YesNo {
+  YES
+  NO
+}
+
+enum ListingStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum UpdateStatus {
+  VISIBLE
+  HIDDEN
+}
+
+enum FeatureRequestStatus {
+  NONE
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model SellerAccessInvite {
+  id        String   @id @default(uuid()) @db.Uuid
+  sellerId  String?  @map("seller_id")
+  phone     String
+  codeHash  String   @map("code_hash")
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(6)
+  createdAt DateTime @map("created_at") @db.Timestamptz(6)
+  seller    Seller?  @relation("SellerAccessInvites", fields: [sellerId], references: [id], onDelete: SetNull)
+
+  @@index([sellerId])
+  @@index([phone])
+  @@index([expiresAt])
+  @@map("seller_access_invites")
+}
+
+model SellerAccessAttempt {
+  phone          String   @id
+  sellerId       String?  @map("seller_id")
+  failedAttempts Int      @default(0) @map("failed_attempts")
+  lockedUntil    DateTime? @map("locked_until") @db.Timestamptz(6)
+  updatedAt      DateTime @map("updated_at") @db.Timestamptz(6)
+  seller         Seller?  @relation("SellerAccessAttempts", fields: [sellerId], references: [id], onDelete: SetNull)
+
+  @@index([sellerId])
+  @@index([lockedUntil])
+  @@map("seller_access_attempts")
+}
+
+model SellerAccessSession {
+  id               String   @id @default(uuid()) @db.Uuid
+  sellerId         String?  @map("seller_id")
+  phone            String   @unique
+  accessToken      String   @unique @map("access_token")
+  refreshToken     String   @unique @map("refresh_token")
+  accessExpiresAt  DateTime @map("access_expires_at") @db.Timestamptz(6)
+  refreshExpiresAt DateTime @map("refresh_expires_at") @db.Timestamptz(6)
+  grantedAt        DateTime @map("granted_at") @db.Timestamptz(6)
+  revokedAt        DateTime? @map("revoked_at") @db.Timestamptz(6)
+  seller           Seller?  @relation("SellerAccessSessions", fields: [sellerId], references: [id], onDelete: SetNull)
+
+  @@index([sellerId])
+  @@index([phone])
+  @@index([accessToken])
+  @@index([refreshToken])
+  @@index([refreshExpiresAt])
+  @@map("seller_access_sessions")
+}
+
+model CarBrand {
+  id     String     @id @default(uuid()) @db.Uuid
+  name   String     @unique
+  models CarModel[]
+
+  @@map("car_brands")
+}
+
+model CarModel {
+  id         String       @id @default(uuid()) @db.Uuid
+  brandId    String       @map("brand_id") @db.Uuid
+  name       String
+  groupLabel String?      @map("group_label")
+  brand      CarBrand     @relation(fields: [brandId], references: [id], onDelete: Restrict)
+  listings   CarListing[]
+
+  @@unique([brandId, name])
+  @@index([brandId])
+  @@map("car_models")
+}
+
+model Seller {
+  id         String       @id @default(uuid()) @db.Uuid
+  name       String
+  phone      String       @unique
+  sellerType SellerType   @map("seller_type")
+  pinHash    String?      @map("pin_hash")
+  listings   CarListing[]
+  accessInvites SellerAccessInvite[] @relation("SellerAccessInvites")
+  accessAttempts SellerAccessAttempt[] @relation("SellerAccessAttempts")
+  accessSessions SellerAccessSession[] @relation("SellerAccessSessions")
+
+  @@index([sellerType])
+  @@map("sellers")
+}
+
+model CarListing {
+  id              String        @id @default(uuid()) @db.Uuid
+  sellerId        String        @map("seller_id") @db.Uuid
+  modelId         String        @map("model_id") @db.Uuid
+  status          ListingStatus
+  isFeatured      YesNo         @default(NO) @map("is_featured")
+  featuredPosition Int?         @map("featured_position")
+  featuredRequestStatus FeatureRequestStatus @default(NONE) @map("featured_request_status")
+  bodyType        BodyType      @map("body_type")
+  year            Int
+  priceValue      Decimal       @map("price_value") @db.Decimal(12, 2)
+  condition       CarCondition
+  fuelType        FuelType      @map("fuel_type")
+  transmission    Transmission
+  mileage         Int
+  rimSizeInches   Int           @map("rim_size_inches")
+  color           String
+  isNegotiable    YesNo         @map("is_negotiable")
+  accidentHistory YesNo         @map("accident_history")
+  description     String        @db.Text
+  postedAt        DateTime      @map("posted_at") @db.Timestamptz(6)
+  galleryImageUrls String[]     @map("gallery_image_urls")
+  seller          Seller        @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  model           CarModel      @relation(fields: [modelId], references: [id], onDelete: Restrict)
+
+  @@index([sellerId])
+  @@index([sellerId, postedAt, id])
+  @@index([modelId])
+  @@index([status, postedAt, id])
+  @@index([postedAt])
+  @@index([priceValue])
+  @@index([year])
+  @@index([mileage])
+  @@index([status, isFeatured, featuredPosition, postedAt, id])
+  @@index([status, featuredRequestStatus, postedAt, id])
+  @@index([featuredPosition])
+  @@index([featuredRequestStatus])
+  @@map("car_listings")
+}
+
+model CarUpdate {
+  id               String   @id @default(uuid()) @db.Uuid
+  status           UpdateStatus
+  isFeatured       YesNo    @default(NO) @map("is_featured")
+  featuredPosition Int?     @map("featured_position")
+  featuredRequestStatus FeatureRequestStatus @default(NONE) @map("featured_request_status")
+  brand            String
+  model            String
+  bodyType         BodyType @map("body_type")
+  year             Int
+  description      String   @db.Text
+  postedAt         DateTime @map("posted_at") @db.Timestamptz(6)
+  galleryImageUrls String[] @map("gallery_image_urls")
+
+  @@index([status, postedAt, id])
+  @@index([status, isFeatured, featuredPosition, postedAt, id])
+  @@index([status, featuredRequestStatus, postedAt, id])
+  @@index([featuredPosition])
+  @@index([featuredRequestStatus])
+  @@index([postedAt])
+  @@index([year])
+  @@map("car_updates")
+}

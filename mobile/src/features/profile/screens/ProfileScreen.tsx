@@ -1,4 +1,4 @@
-import { StyleSheet } from "react-native";
+import { ScrollView, StyleSheet, View } from "react-native";
 import { Button, Card, HelperText, Text, TextInput } from "react-native-paper";
 
 import { appColors } from "../../../shared/theme/paperTheme";
@@ -11,11 +11,21 @@ type ProfileScreenProps = {
   playerNameLabel: string;
   helper: string;
   saveNameLabel: string;
+  becomeSellerLabel: string;
+  postCarLabel?: string;
+  historyLabel?: string;
+  sellerStateLabel?: string;
+  isBecomeSellerDisabled?: boolean;
+  isPostCarDisabled?: boolean;
+  isHistoryDisabled?: boolean;
   currentName: string;
   draftName: string;
   isSaving: boolean;
   onChangeDraft: (value: string) => void;
   onSave: () => void;
+  onBecomeSeller: () => void;
+  onPostCar?: () => void;
+  onHistory?: () => void;
 };
 
 export const ProfileScreen = ({
@@ -25,54 +35,126 @@ export const ProfileScreen = ({
   playerNameLabel,
   helper,
   saveNameLabel,
+  becomeSellerLabel,
+  postCarLabel,
+  historyLabel,
+  sellerStateLabel,
+  isBecomeSellerDisabled = false,
+  isPostCarDisabled = false,
+  isHistoryDisabled = false,
   currentName,
   draftName,
   isSaving,
   onChangeDraft,
   onSave,
+  onBecomeSeller,
+  onPostCar,
+  onHistory,
 }: ProfileScreenProps) => (
-  <>
-    <Card mode="elevated" style={styles.heroCard}>
-      <Card.Content style={styles.heroContent}>
-        <Text style={styles.eyebrow}>{eyebrow}</Text>
-        <Text style={styles.title}>{currentName}</Text>
-        <Text variant="bodyLarge" style={styles.subtitle}>
-          {subtitle}
-        </Text>
-      </Card.Content>
-    </Card>
+  <View style={styles.root}>
+    <ScrollView
+      style={styles.scroll}
+      contentContainerStyle={styles.scrollContent}
+      showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="on-drag"
+    >
+      <Card mode="elevated" style={styles.heroCard}>
+        <Card.Content style={styles.heroContent}>
+          <Text style={styles.eyebrow}>{eyebrow}</Text>
+          <Text style={styles.title}>{currentName}</Text>
+          <Text variant="bodyLarge" style={styles.subtitle}>
+            {subtitle}
+          </Text>
+        </Card.Content>
+      </Card>
 
-    <Card mode="elevated" style={styles.card}>
-      <Card.Content style={styles.content}>
-        <Text style={styles.sectionTitle}>{updateNameLabel}</Text>
-        <TextInput
-          mode="flat"
-          label={playerNameLabel}
-          value={draftName}
-          onChangeText={onChangeDraft}
-          maxLength={24}
-          style={styles.input}
-          underlineColor="transparent"
-          activeUnderlineColor="transparent"
-        />
-        <HelperText type="info" style={styles.helper}>
-          {helper}
-        </HelperText>
-        <Button
-          mode="contained"
-          onPress={onSave}
-          disabled={!draftName.trim() || isSaving}
-          style={styles.button}
-          contentStyle={styles.buttonContent}
-        >
-          {saveNameLabel}
-        </Button>
-      </Card.Content>
-    </Card>
-  </>
+      <Card mode="elevated" style={styles.card}>
+        <Card.Content style={styles.content}>
+          <Text style={styles.sectionTitle}>{updateNameLabel}</Text>
+          <TextInput
+            mode="flat"
+            label={playerNameLabel}
+            value={draftName}
+            onChangeText={onChangeDraft}
+            maxLength={24}
+            style={styles.input}
+            underlineColor="transparent"
+            activeUnderlineColor="transparent"
+          />
+          <HelperText type="info" style={styles.helper}>
+            {helper}
+          </HelperText>
+          <Button
+            mode="contained"
+            onPress={onSave}
+            disabled={!draftName.trim() || isSaving}
+            style={styles.button}
+            contentStyle={styles.buttonContent}
+          >
+            {saveNameLabel}
+          </Button>
+        </Card.Content>
+      </Card>
+
+      <Card mode="elevated" style={styles.card}>
+        <Card.Content style={styles.content}>
+          <Text style={styles.sectionTitle}>{becomeSellerLabel}</Text>
+          {sellerStateLabel ? (
+            <HelperText type="info" style={styles.helper}>
+              {sellerStateLabel}
+            </HelperText>
+          ) : null}
+          <Button
+            mode="contained"
+            onPress={onBecomeSeller}
+            disabled={isBecomeSellerDisabled}
+            style={styles.button}
+            contentStyle={styles.buttonContent}
+          >
+            {becomeSellerLabel}
+          </Button>
+          <View style={styles.sellerActions}>
+            {postCarLabel && onPostCar ? (
+              <Button
+                mode="contained"
+                onPress={onPostCar}
+                disabled={isPostCarDisabled}
+                style={styles.button}
+                contentStyle={styles.buttonContent}
+              >
+                {postCarLabel}
+              </Button>
+            ) : null}
+            {historyLabel && onHistory ? (
+              <Button
+                mode="contained"
+                onPress={onHistory}
+                disabled={isHistoryDisabled}
+                style={styles.button}
+                contentStyle={styles.buttonContent}
+              >
+                {historyLabel}
+              </Button>
+            ) : null}
+          </View>
+        </Card.Content>
+      </Card>
+    </ScrollView>
+  </View>
 );
 
 const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+  },
+  scroll: {
+    flex: 1,
+  },
+  scrollContent: {
+    gap: 20,
+    paddingBottom: 140,
+  },
   heroCard: {
     borderRadius: 28,
     backgroundColor: appColors.surface,
@@ -129,6 +211,9 @@ const styles = StyleSheet.create({
   helper: {
     color: appColors.inkSoft,
     marginLeft: 0,
+  },
+  sellerActions: {
+    gap: 14,
   },
   button: {
     borderRadius: 18,

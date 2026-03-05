@@ -1,486 +1,122 @@
+import { createElement, type ReactNode, type RefObject } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { type FlatList as FlatListType, type NativeScrollEvent, type NativeSyntheticEvent } from "react-native";
-
+import { useShallow } from "zustand/react/shallow";
 import {
-  fetchCarBrands,
-  fetchCarModelGroups,
-  type CarReferenceModelGroup,
-  type CatalogCategory,
-  type CarSummary,
-} from "../api/catalog";
-import { usePaginatedCars } from "./useCarCatalog";
+  type FlatList as FlatListType,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+} from "react-native";
+import type { Edge } from "react-native-safe-area-context";
 
-type UseCarsCatalogFeedParams = {
-  category: CatalogCategory;
+import { fetchSellCarsSearch, type CarSummary } from "../api/catalog";
+import {
+  CarsCatalogFeed,
+  type CatalogFeedCardViewModel,
+  type CatalogSearchOverlayLayer,
+  type CarsCatalogFeedProps,
+} from "../../features/catalog/components/CarsCatalogFeed";
+import { CatalogSearchOverlay } from "../../features/catalog/components/CatalogSearchOverlay";
+import { SellSearchResultsScreen } from "../../features/catalog/components/SellSearchResultsScreen";
+import { useCatalogStore } from "../store/catalogStore";
+import {
+  SearchFilters,
+  buildActiveFilterBadges,
+  buildAvailableBrands,
+  buildAvailableModelGroups,
+  buildAvailablePrices,
+  buildAvailableYears,
+  buildSellCarsSearchParams,
+  hasActiveFilters,
+  matchesFilters,
+  removeFilterFromState,
+} from "../lib/catalogFilters";
+import { buildFeedCard, buildHeroCard } from "../lib/catalogFeedMappers";
+import { buildCatalogSearchOverlayProps } from "../lib/catalogSearchOverlay";
+import { usePaginatedCars } from "./useCarCatalog";
+import { useOverlayTransition } from "./useOverlayTransition";
+
+export type SellCatalogFeedResult = {
+  feedProps: CarsCatalogFeedProps;
+  overlays: Array<{
+    id: "sell-search" | "sell-search-result";
+    isActive: boolean;
+    opacity: CatalogSearchOverlayLayer["opacity"];
+    translateY: CatalogSearchOverlayLayer["translateY"];
+    onBack: () => void;
+    scrollEnabled: boolean;
+    swipeEnabled: boolean;
+    padded?: boolean;
+    safeAreaEdges?: Edge[];
+    content: ReactNode;
+  }>;
+};
+
+type CommonCatalogFeedParams = {
   featuredCars: CarSummary[];
   sellCars: CarSummary[];
+  isFeaturedCarsLoading: boolean;
+  hasFeaturedCarsError: boolean;
   initialScrollOffset?: number;
   onScrollOffsetChange?: (offset: number) => void;
-  showHeader: boolean;
-  onRefreshFeaturedCars?: () => Promise<boolean>;
+  featuredLabel: string;
+  sellLabel: string;
+  featuredLoadingLabel: string;
+  featuredErrorLabel: string;
+  headerTitle: string;
+  loadingLabel?: string;
+  emptyResultsLabel?: string;
+  loadingMoreLabel?: string;
+  carTypeLabel?: string;
+  priceLabel?: string;
+  sellerTypeLabel?: string;
+  postedAtLabel?: string;
+  onOpenCar: (carId: string) => void;
+  defaultCardsLayout?: "list" | "grid";
+  filteredCardsLayout?: "list" | "grid";
 };
 
-type SearchFilters = {
-  query: string;
-  brand?: string;
-  model?: string[];
-  carType?: string;
-  priceFrom?: number;
-  priceTo?: number;
-  yearFrom?: number;
-  yearTo?: number;
-  condition?: string;
-  transmission?: string;
-  fuelType?: string;
-  mileageFrom?: number;
-  mileageTo?: number;
+export type UseSellCatalogFeedParams = CommonCatalogFeedParams & {
+  searchPlaceholder: string;
+  quickSearchTitle?: string;
+  brandLabel?: string;
+  modelLabel?: string;
+  priceFromLabel?: string;
+  priceToLabel?: string;
+  yearFilterLabel?: string;
+  yearFromLabel?: string;
+  yearToLabel?: string;
+  mileageLabel?: string;
+  mileageFromLabel?: string;
+  mileageToLabel?: string;
+  conditionLabel?: string;
+  transmissionLabel?: string;
+  fuelTypeLabel?: string;
+  clearAllLabel?: string;
+  offersLabel?: string;
+  chooseBrandFirstLabel?: string;
+  noModelsLabel?: string;
 };
 
-type ActiveFilterBadge = {
-  id: string;
-  label: string;
+export type UseUpdatesCatalogFeedParams = CommonCatalogFeedParams & {
+  searchPlaceholder?: string;
 };
 
-const matchesCarType = (carType: string, selectedType: string) => {
-  const normalizedCarType = carType.trim().toLowerCase();
-  const normalizedSelectedType = selectedType.trim().toLowerCase();
-
-  const aliasMap: Record<string, string[]> = {
-    sedan: ["sedan", "saloon"],
-    coupe: ["coupe"],
-    convertible: ["convertible", "cabriolet", "cabrio", "spyder", "spider"],
-    cabriolet: ["cabriolet", "cabrio", "convertible", "spyder", "spider"],
-    hatchback: ["hatchback", "hatch"],
-    suv: ["suv", "sport utility"],
-    crossover: ["crossover"],
-    wagon: ["wagon", "estate", "touring", "avant", "variant", "shooting brake"],
-    estate: ["estate", "wagon", "touring", "avant", "variant", "shooting brake"],
-    pickup: ["pickup", "pick-up", "truck"],
-    van: ["van", "mpv", "minivan", "people carrier"],
-    minivan: ["minivan", "mpv", "people carrier", "van"],
-    roadster: ["roadster", "spyder", "spider"],
-  };
-
-  const aliases = aliasMap[normalizedSelectedType] ?? [normalizedSelectedType];
-  return aliases.some((alias) => normalizedCarType.includes(alias));
-};
-
-const matchesFuelType = (fuelType: string, selectedFuelType: string) => {
-  const normalizedFuelType = fuelType.trim().toLowerCase();
-  const normalizedSelectedFuelType = selectedFuelType.trim().toLowerCase();
-
-  const aliasMap: Record<string, string[]> = {
-    reev: ["reev", "range extender", "range-extender"],
-    electric: ["electric", "ev", "bev"],
-    hybrid: ["hybrid", "hev"],
-    "plug-in hybrid": ["plug-in hybrid", "phev", "plugin hybrid"],
-    petrol: ["petrol", "gasoline", "benzine"],
-    diesel: ["diesel"],
-    gas: ["gas", "lpg", "cng", "ngv"],
-    cng: ["cng", "ngv", "gas"],
-    lpg: ["lpg", "gas"],
-    hydrogen: ["hydrogen", "fuel cell", "fcev"],
-    "mild hybrid": ["mild hybrid", "mhev"],
-    "flex fuel": ["flex fuel", "ethanol", "e85"],
-  };
-
-  const aliases = aliasMap[normalizedSelectedFuelType] ?? [normalizedSelectedFuelType];
-  return aliases.some((alias) => normalizedFuelType.includes(alias));
-};
-
-const matchesFilters = (car: CarSummary, filters: SearchFilters) => {
-  const normalizedQuery = filters.query.trim().toLowerCase();
-
-  if (normalizedQuery.length > 0) {
-    const queryMatch = [
-      car.brand,
-      car.model,
-      car.type,
-      car.description,
-      car.priceLabel ?? "",
-      car.condition ?? "",
-      car.transmission ?? "",
-      car.fuelType ?? "",
-      `${car.year}`,
-    ]
-      .join(" ")
-      .toLowerCase()
-      .includes(normalizedQuery);
-
-    if (!queryMatch) {
-      return false;
-    }
-  }
-
-  if (filters.brand && car.brand !== filters.brand) {
-    return false;
-  }
-
-  if (filters.model && filters.model.length > 0 && !filters.model.includes(car.model)) {
-    return false;
-  }
-
-  if (filters.carType && !matchesCarType(car.type, filters.carType)) {
-    return false;
-  }
-
-  if (filters.priceFrom !== undefined) {
-    if (car.priceValue === undefined || car.priceValue < filters.priceFrom) {
-      return false;
-    }
-  }
-
-  if (filters.priceTo !== undefined) {
-    if (car.priceValue === undefined || car.priceValue > filters.priceTo) {
-      return false;
-    }
-  }
-
-  if (filters.yearFrom && car.year < filters.yearFrom) {
-    return false;
-  }
-
-  if (filters.yearTo && car.year > filters.yearTo) {
-    return false;
-  }
-
-  if (filters.condition && car.condition !== filters.condition) {
-    return false;
-  }
-
-  if (filters.transmission && car.transmission !== filters.transmission) {
-    return false;
-  }
-
-  if (filters.fuelType && (!car.fuelType || !matchesFuelType(car.fuelType, filters.fuelType))) {
-    return false;
-  }
-
-  if (filters.mileageFrom !== undefined) {
-    if (car.mileage === undefined || car.mileage < filters.mileageFrom) {
-      return false;
-    }
-  }
-
-  if (filters.mileageTo !== undefined) {
-    if (car.mileage === undefined || car.mileage > filters.mileageTo) {
-      return false;
-    }
-  }
-
-  return true;
-};
-
-const removeFilterFromState = (current: SearchFilters, filterId: string): SearchFilters => {
-  if (filterId.startsWith("model:")) {
-    const modelToRemove = filterId.slice("model:".length);
-    const nextModels = (current.model ?? []).filter((model) => model !== modelToRemove);
-
-    return {
-      ...current,
-      model: nextModels.length > 0 ? nextModels : undefined,
-    };
-  }
-
-  switch (filterId) {
-    case "brand":
-      return {
-        ...current,
-        brand: undefined,
-        model: undefined,
-      };
-    case "carType":
-      return { ...current, carType: undefined };
-    case "price":
-      return { ...current, priceFrom: undefined, priceTo: undefined };
-    case "year":
-      return { ...current, yearFrom: undefined, yearTo: undefined };
-    case "mileage":
-      return { ...current, mileageFrom: undefined, mileageTo: undefined };
-    case "transmission":
-      return { ...current, transmission: undefined };
-    case "fuelType":
-      return { ...current, fuelType: undefined };
-    case "condition":
-      return { ...current, condition: undefined };
-    default:
-      return current;
-  }
-};
-
-export const useCarsCatalogFeed = ({
-  category,
-  featuredCars,
-  sellCars,
+const useCatalogFeedScroll = ({
   initialScrollOffset = 0,
   onScrollOffsetChange,
-  showHeader,
-  onRefreshFeaturedCars,
-}: UseCarsCatalogFeedParams) => {
-  const [appliedFilters, setAppliedFilters] = useState<SearchFilters>({ query: "" });
-  const [draftFilters, setDraftFilters] = useState<SearchFilters>({ query: "" });
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [showMoreFilters, setShowMoreFilters] = useState(false);
-  const [referenceBrands, setReferenceBrands] = useState<string[]>([]);
-  const [referenceModelGroups, setReferenceModelGroups] = useState<CarReferenceModelGroup[]>([]);
-  const listRef = useRef<FlatListType<CarSummary>>(null);
+  hasMore = false,
+  isLoadingMore = false,
+  onLoadMore,
+}: {
+  initialScrollOffset?: number;
+  onScrollOffsetChange?: (offset: number) => void;
+  hasMore?: boolean;
+  isLoadingMore?: boolean;
+  onLoadMore?: () => void;
+}) => {
+  const listRef = useRef<FlatListType<CatalogFeedCardViewModel>>(null);
   const hasRestoredScroll = useRef(false);
-  const { cars, isLoading, isLoadingMore, isRefreshing, hasMore, loadMore, refresh } =
-    usePaginatedCars(category);
-
-  const allSearchableCars = useMemo(
-    () =>
-      [...featuredCars, ...sellCars, ...cars].filter(
-        (car, index, list) => list.findIndex((item) => item.id === car.id) === index,
-      ),
-    [cars, featuredCars, sellCars],
-  );
-
-  const filteredFeaturedCars = useMemo(
-    () => featuredCars.filter((car) => matchesFilters(car, appliedFilters)),
-    [appliedFilters, featuredCars],
-  );
-  const filteredSellCars = useMemo(
-    () => sellCars.filter((car) => matchesFilters(car, appliedFilters)),
-    [appliedFilters, sellCars],
-  );
-  const filteredCars = useMemo(
-    () => cars.filter((car) => matchesFilters(car, appliedFilters)),
-    [appliedFilters, cars],
-  );
-
-  useEffect(() => {
-    let cancelled = false;
-
-    if (category !== "SELL") {
-      setReferenceBrands([]);
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    void fetchCarBrands()
-      .then((brands) => {
-        if (!cancelled) {
-          setReferenceBrands(brands);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setReferenceBrands([]);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [category]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    if (category !== "SELL" || !draftFilters.brand) {
-      setReferenceModelGroups([]);
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    void fetchCarModelGroups(draftFilters.brand)
-      .then((groups) => {
-        if (!cancelled) {
-          setReferenceModelGroups(groups);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setReferenceModelGroups([]);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [category, draftFilters.brand]);
-
-  const availableBrands = useMemo(
-    () =>
-      category === "SELL"
-        ? referenceBrands
-        : [...new Set(allSearchableCars.map((car) => car.brand))]
-            .filter(Boolean)
-            .sort((left, right) => left.localeCompare(right)),
-    [allSearchableCars, category, referenceBrands],
-  );
-
-  const availableModelGroups = useMemo(
-    () =>
-      category === "SELL"
-        ? referenceModelGroups
-        : [
-            {
-              groupLabel: null,
-              models: [...new Set(
-                (draftFilters.brand
-                  ? allSearchableCars.filter((car) => car.brand === draftFilters.brand)
-                  : allSearchableCars
-                ).map((car) => car.model),
-              )]
-                .filter(Boolean)
-                .sort((left, right) => left.localeCompare(right)),
-            },
-          ].filter((group) => group.models.length > 0),
-    [allSearchableCars, category, draftFilters.brand, referenceModelGroups],
-  );
-
-  const availableModels = useMemo(
-    () => availableModelGroups.flatMap((group) => group.models),
-    [availableModelGroups],
-  );
-
-  const availableYears = useMemo(
-    () => {
-      const years: number[] = [];
-
-      for (let year = 2026; year >= 1990; year -= 1) {
-        years.push(year);
-      }
-
-      return years;
-    },
-    [],
-  );
-
-  const availablePrices = useMemo(
-    () => {
-      const prices: number[] = [];
-
-      for (let price = 0; price <= 20_000_000; price += 100_000) {
-        prices.push(price);
-      }
-
-      return prices;
-    },
-    [],
-  );
-
-  const availableConditions = useMemo(
-    () => ["New", "Used"],
-    [],
-  );
-
-  const availableCarTypes = useMemo(
-    () => [
-      "Sedan",
-      "Coupe",
-      "Convertible",
-      "Cabriolet",
-      "Hatchback",
-      "SUV",
-      "Crossover",
-      "Wagon",
-      "Estate",
-      "Pickup",
-      "Van",
-      "Minivan",
-      "Roadster",
-    ],
-    [],
-  );
-
-  const availableTransmissions = useMemo(
-    () => ["Manual", "Automatic"],
-    [],
-  );
-
-  const availableFuelTypes = useMemo(
-    () => [
-      "REEV",
-      "Electric",
-      "Hybrid",
-      "Plug-in Hybrid",
-      "Petrol",
-      "Gas",
-      "Mild Hybrid",
-    ],
-    [],
-  );
-
-  const searchPreviewText = useMemo(() => appliedFilters.query.trim(), [appliedFilters.query]);
-
-  const activeFilterBadges = useMemo<ActiveFilterBadge[]>(() => {
-    const badges: ActiveFilterBadge[] = [];
-
-    if (appliedFilters.brand) {
-      badges.push({ id: "brand", label: appliedFilters.brand });
-    }
-
-    if (appliedFilters.model && appliedFilters.model.length > 0) {
-      badges.push(
-        ...appliedFilters.model.map((model) => ({
-          id: `model:${model}`,
-          label: model,
-        })),
-      );
-    }
-
-    if (appliedFilters.carType) {
-      badges.push({ id: "carType", label: appliedFilters.carType });
-    }
-
-    if (appliedFilters.priceFrom !== undefined || appliedFilters.priceTo !== undefined) {
-      badges.push({
-        id: "price",
-        label: `${appliedFilters.priceFrom ?? 0}-${appliedFilters.priceTo ?? "Any"} EGP`,
-      });
-    }
-
-    if (appliedFilters.yearFrom !== undefined || appliedFilters.yearTo !== undefined) {
-      badges.push({
-        id: "year",
-        label: `${appliedFilters.yearFrom ?? "Any"}-${appliedFilters.yearTo ?? "Any"}`,
-      });
-    }
-
-    if (appliedFilters.mileageFrom !== undefined || appliedFilters.mileageTo !== undefined) {
-      badges.push({
-        id: "mileage",
-        label: `${appliedFilters.mileageFrom ?? 0}-${appliedFilters.mileageTo ?? "Any"} KM`,
-      });
-    }
-
-    if (appliedFilters.transmission) {
-      badges.push({ id: "transmission", label: appliedFilters.transmission });
-    }
-
-    if (appliedFilters.fuelType) {
-      badges.push({ id: "fuelType", label: appliedFilters.fuelType });
-    }
-
-    if (appliedFilters.condition) {
-      badges.push({ id: "condition", label: appliedFilters.condition });
-    }
-
-    return badges;
-  }, [appliedFilters]);
-
-  const hasActiveFilters = useMemo(
-    () =>
-      appliedFilters.query.trim().length > 0 ||
-      appliedFilters.brand !== undefined ||
-      (appliedFilters.model?.length ?? 0) > 0 ||
-      appliedFilters.carType !== undefined ||
-      appliedFilters.priceFrom !== undefined ||
-      appliedFilters.priceTo !== undefined ||
-      appliedFilters.yearFrom !== undefined ||
-      appliedFilters.yearTo !== undefined ||
-      appliedFilters.condition !== undefined ||
-      appliedFilters.transmission !== undefined ||
-      appliedFilters.fuelType !== undefined ||
-      appliedFilters.mileageFrom !== undefined ||
-      appliedFilters.mileageTo !== undefined,
-    [appliedFilters],
-  );
+  const loadMoreTriggeredAt = useRef<number | null>(null);
 
   useEffect(() => {
     if (hasRestoredScroll.current || initialScrollOffset <= 0) {
@@ -500,191 +136,645 @@ export const useCarsCatalogFeed = ({
     };
   }, [initialScrollOffset]);
 
-  const handleScroll = useCallback(
+  const onScroll = useCallback(
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
       const nextOffset = Math.max(event.nativeEvent.contentOffset.y, 0);
       onScrollOffsetChange?.(nextOffset);
+
+      if (!hasMore || isLoadingMore || !onLoadMore) {
+        return;
+      }
+
+      const {
+        contentOffset,
+        contentSize,
+        layoutMeasurement,
+      } = event.nativeEvent;
+      const distanceFromBottom =
+        contentSize.height - (contentOffset.y + layoutMeasurement.height);
+
+      if (distanceFromBottom > 900) {
+        return;
+      }
+
+      const triggerGate = Math.floor(contentSize.height);
+      if (loadMoreTriggeredAt.current === triggerGate) {
+        return;
+      }
+
+      loadMoreTriggeredAt.current = triggerGate;
+      onLoadMore();
     },
-    [onScrollOffsetChange],
+    [hasMore, isLoadingMore, onLoadMore, onScrollOffsetChange],
   );
 
-  const handleRefresh = useCallback(() => {
-    void Promise.all([
-      refresh(),
-      onRefreshFeaturedCars ? onRefreshFeaturedCars() : Promise.resolve(false),
-    ]);
-  }, [onRefreshFeaturedCars, refresh]);
+  useEffect(() => {
+    if (!isLoadingMore) {
+      loadMoreTriggeredAt.current = null;
+    }
+  }, [isLoadingMore]);
 
-  return {
-    searchText: searchPreviewText,
-    activeFilterBadges,
-    hasActiveFilters,
-    isSearchOpen,
-    showMoreFilters,
+  return { listRef, onScroll };
+};
+
+const buildCatalogFeedProps = ({
+  heroFeaturedCars,
+  heroSellCars,
+  isFeaturedCarsLoading,
+  hasFeaturedCarsError,
+  featuredLabel,
+  sellLabel,
+  featuredLoadingLabel,
+  featuredErrorLabel,
+  fixedPanel,
+  headerTitle,
+  searchPlaceholder,
+  cards,
+  isLoading,
+  isLoadingMore,
+  hasMore,
+  loadingLabel = "Loading cars...",
+  emptyResultsLabel = "No cars matched your search.",
+  loadingMoreLabel = "Loading more...",
+  defaultCardsLayout = "list",
+  filteredCardsLayout = "list",
+  showHeader,
+  listRef,
+  onOpenCar,
+  onLoadMore,
+  onScroll,
+  isSearchOpen = false,
+  searchText = "",
+  activeFilterBadges = [],
+  hasActiveFilters = false,
+  searchOverlayProps,
+  searchLayer,
+  onResetAllAndApply = () => undefined,
+  onRemoveAppliedFilter = () => undefined,
+  onOpenSearch = () => undefined,
+}: {
+  heroFeaturedCars: CarsCatalogFeedProps["heroFeaturedCars"];
+  heroSellCars: CarsCatalogFeedProps["heroSellCars"];
+  isFeaturedCarsLoading: boolean;
+  hasFeaturedCarsError: boolean;
+  featuredLabel: string;
+  sellLabel: string;
+  featuredLoadingLabel: string;
+  featuredErrorLabel: string;
+  fixedPanel: CarsCatalogFeedProps["fixedPanel"];
+  headerTitle: string;
+  searchPlaceholder: string;
+  cards: CatalogFeedCardViewModel[];
+  isLoading: boolean;
+  isLoadingMore: boolean;
+  hasMore: boolean;
+  loadingLabel?: string;
+  emptyResultsLabel?: string;
+  loadingMoreLabel?: string;
+  defaultCardsLayout?: CarsCatalogFeedProps["defaultCardsLayout"];
+  filteredCardsLayout?: CarsCatalogFeedProps["filteredCardsLayout"];
+  showHeader: boolean;
+  listRef: RefObject<FlatListType<CatalogFeedCardViewModel> | null>;
+  onOpenCar: (carId: string) => void;
+  onLoadMore: () => void;
+  onScroll: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
+  isSearchOpen?: boolean;
+  searchText?: string;
+  activeFilterBadges?: CarsCatalogFeedProps["activeFilterBadges"];
+  hasActiveFilters?: boolean;
+  searchOverlayProps?: CarsCatalogFeedProps["searchOverlayProps"];
+  searchLayer?: CarsCatalogFeedProps["searchLayer"];
+  onResetAllAndApply?: () => void;
+  onRemoveAppliedFilter?: (filterId: string) => void;
+  onOpenSearch?: () => void;
+}): CarsCatalogFeedProps => ({
+  isSearchOpen,
+  searchOverlayProps,
+  searchLayer,
+  searchText,
+  activeFilterBadges,
+  hasActiveFilters,
+  isFeaturedCarsLoading,
+  hasFeaturedCarsError,
+  featuredLabel,
+  sellLabel,
+  featuredLoadingLabel,
+  featuredErrorLabel,
+  heroFeaturedCars,
+  heroSellCars,
+  fixedPanel,
+  headerTitle,
+  searchPlaceholder,
+  cards,
+  isLoading,
+  isLoadingMore,
+  hasMore,
+  loadingLabel,
+  emptyResultsLabel,
+  loadingMoreLabel,
+  defaultCardsLayout,
+  filteredCardsLayout,
+  showHeader,
+  listRef,
+  onResetAllAndApply,
+  onRemoveAppliedFilter,
+  onOpenSearch,
+  onOpenCar,
+  onLoadMore,
+  onScroll,
+});
+
+export const useSellCatalogFeed = ({
+  featuredCars,
+  sellCars,
+  isFeaturedCarsLoading,
+  hasFeaturedCarsError,
+  initialScrollOffset = 0,
+  onScrollOffsetChange,
+  featuredLabel,
+  sellLabel,
+  featuredLoadingLabel,
+  featuredErrorLabel,
+  headerTitle,
+  searchPlaceholder,
+  loadingLabel = "Loading cars...",
+  emptyResultsLabel = "No cars matched your search.",
+  loadingMoreLabel = "Loading more...",
+  quickSearchTitle = "Quick search",
+  brandLabel = "Car brand",
+  modelLabel = "Car model",
+  carTypeLabel = "Car type",
+  priceLabel = "Price",
+  priceFromLabel = "Min price",
+  priceToLabel = "Max price",
+  yearFilterLabel = "Year",
+  yearFromLabel = "From",
+  yearToLabel = "To",
+  mileageLabel = "Mileage (KM)",
+  mileageFromLabel = "KM from",
+  mileageToLabel = "KM to",
+  conditionLabel = "Condition",
+  transmissionLabel = "Transmission",
+  fuelTypeLabel = "Fuel type",
+  clearAllLabel = "Clear all",
+  offersLabel = "Offers",
+  chooseBrandFirstLabel = "Choose a brand first",
+  noModelsLabel = "No models found",
+  sellerTypeLabel = "Seller",
+  postedAtLabel = "Posted",
+  onOpenCar,
+  defaultCardsLayout = "list",
+  filteredCardsLayout = "list",
+}: UseSellCatalogFeedParams): SellCatalogFeedResult => {
+  const [appliedFilters, setAppliedFilters] = useState<SearchFilters>({ query: "" });
+  const [draftFilters, setDraftFilters] = useState<SearchFilters>({ query: "" });
+  const [searchPhase, setSearchPhase] = useState<"closed" | "search" | "result">("closed");
+  const isSearchActive = searchPhase === "search" || searchPhase === "result";
+  const isResultActive = searchPhase === "result";
+  const shouldMountSearch = searchPhase !== "closed";
+  const searchTransition = useOverlayTransition(isSearchActive);
+  const resultTransition = useOverlayTransition(isResultActive);
+  const { cars, isLoading, isLoadingMore, hasMore, loadMore } = usePaginatedCars("SELL");
+  const {
+    referenceCatalog,
+    sellSearch,
+    searchSellCars,
+    loadMoreSellSearch,
+    clearSellSearch,
+  } = useCatalogStore(
+    useShallow((state) => ({
+      referenceCatalog: state.referenceCatalog,
+      sellSearch: state.sellSearch,
+      searchSellCars: state.searchSellCars,
+      loadMoreSellSearch: state.loadMoreSellSearch,
+      clearSellSearch: state.clearSellSearch,
+    })),
+  );
+
+  const allSearchableCars = useMemo(
+    () =>
+      [...featuredCars, ...sellCars, ...cars].filter(
+        (car, index, list) => list.findIndex((item) => item.id === car.id) === index,
+      ),
+    [cars, featuredCars, sellCars],
+  );
+
+  const filteredCars = useMemo(
+    () => cars.filter((car) => matchesFilters(car, appliedFilters)),
+    [appliedFilters, cars],
+  );
+  const draftFilteredCarsCount = useMemo(
+    () => cars.filter((car) => matchesFilters(car, draftFilters)).length,
+    [cars, draftFilters],
+  );
+  const [draftSearchResultCount, setDraftSearchResultCount] = useState<number | undefined>();
+
+  const availableBrands = useMemo(
+    () => buildAvailableBrands("SELL", allSearchableCars, referenceCatalog?.brands),
+    [allSearchableCars, referenceCatalog?.brands],
+  );
+  const availableModelGroups = useMemo(
+    () =>
+      buildAvailableModelGroups({
+        category: "SELL",
+        brand: draftFilters.brand,
+        allSearchableCars,
+        modelGroupsByBrand: referenceCatalog?.modelGroupsByBrand,
+      }),
+    [allSearchableCars, draftFilters.brand, referenceCatalog],
+  );
+  const availableYears = useMemo(buildAvailableYears, []);
+  const availablePrices = useMemo(buildAvailablePrices, []);
+  const activeFilterBadges = useMemo(
+    () => buildActiveFilterBadges(appliedFilters),
+    [appliedFilters],
+  );
+  const hasAppliedFilters = useMemo(
+    () => hasActiveFilters(appliedFilters),
+    [appliedFilters],
+  );
+  const appliedSearchParams = useMemo(
+    () => buildSellCarsSearchParams(appliedFilters),
+    [appliedFilters],
+  );
+  const draftSearchParams = useMemo(
+    () => buildSellCarsSearchParams(draftFilters),
+    [draftFilters],
+  );
+
+  useEffect(() => {
+    if (!hasAppliedFilters) {
+      clearSellSearch();
+      return;
+    }
+
+    void searchSellCars(appliedSearchParams);
+  }, [appliedSearchParams, clearSellSearch, hasAppliedFilters, searchSellCars]);
+
+  useEffect(() => {
+    if (!shouldMountSearch) {
+      setDraftSearchResultCount(undefined);
+      return;
+    }
+
+    if (!hasActiveFilters(draftFilters)) {
+      setDraftSearchResultCount(cars.length);
+      return;
+    }
+
+    let cancelled = false;
+    const request = setTimeout(() => {
+      void fetchSellCarsSearch(draftSearchParams, 0, 1)
+        .then((page) => {
+          if (!cancelled) {
+            setDraftSearchResultCount(page.total);
+          }
+        })
+        .catch(() => {
+          if (!cancelled) {
+            setDraftSearchResultCount(draftFilteredCarsCount);
+          }
+        });
+    }, 180);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(request);
+    };
+  }, [
+    cars.length,
+    draftFilteredCarsCount,
     draftFilters,
+    draftSearchParams,
+    shouldMountSearch,
+  ]);
+
+  const activeCars = hasAppliedFilters ? sellSearch.cars : cars;
+  const activeIsLoading = hasAppliedFilters ? sellSearch.isLoading : isLoading;
+  const activeIsLoadingMore = hasAppliedFilters ? sellSearch.isLoadingMore : isLoadingMore;
+  const activeHasMore = hasAppliedFilters ? sellSearch.nextOffset !== null : hasMore;
+  const activeLoadMore = hasAppliedFilters ? loadMoreSellSearch : loadMore;
+  const { listRef, onScroll } = useCatalogFeedScroll({
+    initialScrollOffset,
+    onScrollOffsetChange,
+    hasMore,
+    isLoadingMore,
+    onLoadMore: loadMore,
+  });
+  const { listRef: resultListRef, onScroll: resultOnScroll } = useCatalogFeedScroll({
+    hasMore: activeHasMore,
+    isLoadingMore: activeIsLoadingMore,
+    onLoadMore: activeLoadMore,
+  });
+  const heroFeaturedCars = useMemo(
+    () =>
+      featuredCars.map((car) =>
+        buildHeroCard({
+          car,
+          typeLabel: carTypeLabel,
+          priceLabel,
+          sellerTypeLabel,
+          postedAtLabel,
+        }),
+      ),
+    [
+      carTypeLabel,
+      featuredCars,
+      postedAtLabel,
+      priceLabel,
+      sellerTypeLabel,
+    ],
+  );
+  const heroSellCars = useMemo(
+    () =>
+      sellCars.map((car) =>
+        buildHeroCard({
+          car,
+          typeLabel: carTypeLabel,
+          priceLabel,
+          sellerTypeLabel,
+          postedAtLabel,
+        }),
+      ),
+    [
+      carTypeLabel,
+      postedAtLabel,
+      priceLabel,
+      sellCars,
+      sellerTypeLabel,
+    ],
+  );
+
+  const searchOverlayProps = buildCatalogSearchOverlayProps({
+    enabled: true,
+    quickSearchTitle,
+    searchPlaceholder,
+    draftFilters,
+    appliedFilters,
+    brandLabel,
+    modelLabel,
+    carTypeLabel,
+    priceLabel,
+    priceFromLabel,
+    priceToLabel,
+    yearFilterLabel,
+    yearFromLabel,
+    yearToLabel,
+    mileageLabel,
+    mileageFromLabel,
+    mileageToLabel,
+    conditionLabel,
+    transmissionLabel,
+    fuelTypeLabel,
+    clearAllLabel,
+    offersLabel,
+    chooseBrandFirstLabel,
+    noModelsLabel,
+    resultCount: draftSearchResultCount ?? draftFilteredCarsCount,
     availableBrands,
     availableModelGroups,
-    availableModels,
-    availableCarTypes,
     availablePrices,
     availableYears,
-    availableConditions,
-    availableTransmissions,
-    availableFuelTypes,
-    resetAllFilters: () =>
-      setDraftFilters({
-        query: "",
-      }),
-    resetAllAndApply: () => {
+    setDraftFilters,
+    setAppliedFilters,
+    setIsSearchOpen: (value) => {
+      const nextValue =
+        typeof value === "function" ? value(searchPhase === "search") : value;
+      setSearchPhase(nextValue ? "search" : "closed");
+    },
+  });
+
+  const feedProps = buildCatalogFeedProps({
+    heroFeaturedCars,
+    heroSellCars,
+    isFeaturedCarsLoading,
+    hasFeaturedCarsError,
+    featuredLabel,
+    sellLabel,
+    featuredLoadingLabel,
+    featuredErrorLabel,
+    fixedPanel: "SELL",
+    headerTitle,
+    searchPlaceholder,
+    cards: cars.map((car) => buildFeedCard({ car, sellerTypeLabel, postedAtLabel })),
+    isLoading,
+    isLoadingMore,
+    hasMore,
+    loadingLabel,
+    emptyResultsLabel,
+    loadingMoreLabel,
+    defaultCardsLayout,
+    filteredCardsLayout: defaultCardsLayout,
+    showHeader: true,
+    listRef,
+    onOpenCar,
+    onLoadMore: loadMore,
+    onScroll,
+    isSearchOpen: shouldMountSearch,
+    searchText: "",
+    activeFilterBadges: [],
+    hasActiveFilters: false,
+    onResetAllAndApply: () => {
       const emptyFilters: SearchFilters = { query: "" };
       setDraftFilters(emptyFilters);
       setAppliedFilters(emptyFilters);
-      setIsSearchOpen(false);
+      setSearchPhase("closed");
     },
-    removeAppliedFilter: (filterId: string) => {
+    onRemoveAppliedFilter: (filterId) => {
       setAppliedFilters((current) => removeFilterFromState(current, filterId));
       setDraftFilters((current) => removeFilterFromState(current, filterId));
     },
-    clearSearch: () =>
-      setDraftFilters((current) => ({
-        query: "",
-        brand: current.brand,
-        model: current.model,
-        carType: current.carType,
-        priceFrom: current.priceFrom,
-        priceTo: current.priceTo,
-        yearFrom: current.yearFrom,
-        yearTo: current.yearTo,
-        condition: current.condition,
-        transmission: current.transmission,
-        fuelType: current.fuelType,
-        mileageFrom: current.mileageFrom,
-        mileageTo: current.mileageTo,
-      })),
-    listRef,
-    filteredFeaturedCars,
-    filteredSellCars,
-    filteredCars,
+    onOpenSearch: () => {
+      setSearchPhase("search");
+    },
+  });
+  const resultFeedProps = buildCatalogFeedProps({
+    heroFeaturedCars: [],
+    heroSellCars: [],
+    isFeaturedCarsLoading: false,
+    hasFeaturedCarsError: false,
+    featuredLabel,
+    sellLabel,
+    featuredLoadingLabel,
+    featuredErrorLabel,
+    fixedPanel: "SELL",
+    headerTitle,
+    searchPlaceholder,
+    cards: activeCars.map((car) => buildFeedCard({ car, sellerTypeLabel, postedAtLabel })),
+    isLoading: activeIsLoading,
+    isLoadingMore: activeIsLoadingMore,
+    hasMore: activeHasMore,
+    loadingLabel,
+    emptyResultsLabel,
+    loadingMoreLabel,
+    defaultCardsLayout: "list",
+    filteredCardsLayout: "list",
+    showHeader: false,
+    listRef: resultListRef,
+    onOpenCar,
+    onLoadMore: activeLoadMore,
+    onScroll: resultOnScroll,
+    isSearchOpen: false,
+    searchText: appliedFilters.query.trim(),
+    activeFilterBadges,
+    hasActiveFilters: true,
+    onResetAllAndApply: () => undefined,
+    onRemoveAppliedFilter: () => undefined,
+    onOpenSearch: () => undefined,
+  });
+  const resultSummary = useMemo(() => {
+    const query = appliedFilters.query.trim();
+    if (query.length > 0) {
+      return `Showing results for "${query}"`;
+    }
+
+    if (activeFilterBadges.length > 0) {
+      return "Showing results for your selected filters";
+    }
+
+    return undefined;
+  }, [activeFilterBadges.length, appliedFilters.query]);
+
+  const closeSearchToSell = () => {
+    searchTransition.close(() => {
+      setSearchPhase("closed");
+    });
+  };
+
+  const dismissSearchToSell = () => {
+    searchTransition.dismiss(() => {
+      setSearchPhase("closed");
+    });
+  };
+
+  const dismissResultToSearch = () => {
+    resultTransition.dismiss(() => {
+      setSearchPhase("search");
+    });
+  };
+
+  const nextSearchOverlayProps = searchOverlayProps
+    ? {
+        ...searchOverlayProps,
+        visible: shouldMountSearch,
+        onBack: closeSearchToSell,
+        onApply: () => {
+          setAppliedFilters(draftFilters);
+          if (hasActiveFilters(draftFilters)) {
+            setSearchPhase("result");
+            return;
+          }
+          setSearchPhase("closed");
+        },
+      }
+    : undefined;
+
+  return {
+    feedProps,
+    overlays: [
+      ...(nextSearchOverlayProps
+        ? [
+            {
+              id: "sell-search" as const,
+              isActive: isSearchActive,
+              opacity: searchTransition.opacity,
+              translateY: searchTransition.translateY,
+              onBack: dismissSearchToSell,
+              scrollEnabled: false,
+              swipeEnabled: true,
+              padded: false,
+              safeAreaEdges: ["left", "right"] as Edge[],
+              content: createElement(CatalogSearchOverlay, nextSearchOverlayProps),
+            },
+          ]
+        : []),
+      {
+        id: "sell-search-result" as const,
+        isActive: isResultActive,
+        opacity: resultTransition.opacity,
+        translateY: resultTransition.translateY,
+        onBack: dismissResultToSearch,
+        scrollEnabled: false,
+        swipeEnabled: true,
+        padded: false,
+        safeAreaEdges: ["left", "right"] as Edge[],
+        content: createElement(SellSearchResultsScreen, {
+          title: "Search results",
+          summary: resultSummary,
+          activeFilterBadges,
+          onBack: dismissResultToSearch,
+          feedProps: resultFeedProps,
+        }),
+      },
+    ],
+  };
+};
+
+export const useUpdatesCatalogFeed = ({
+  featuredCars,
+  sellCars,
+  isFeaturedCarsLoading,
+  hasFeaturedCarsError,
+  initialScrollOffset = 0,
+  onScrollOffsetChange,
+  featuredLabel,
+  sellLabel,
+  featuredLoadingLabel,
+  featuredErrorLabel,
+  headerTitle,
+  searchPlaceholder = "",
+  loadingLabel = "Loading cars...",
+  emptyResultsLabel = "No cars matched your search.",
+  loadingMoreLabel = "Loading more...",
+  carTypeLabel = "Car type",
+  postedAtLabel = "Posted",
+  sellerTypeLabel = "Seller",
+  onOpenCar,
+  defaultCardsLayout = "list",
+  filteredCardsLayout = "list",
+}: UseUpdatesCatalogFeedParams): CarsCatalogFeedProps => {
+  const { cars, isLoading, isLoadingMore, hasMore, loadMore } = usePaginatedCars("UPDATE");
+  const { listRef, onScroll } = useCatalogFeedScroll({
+    initialScrollOffset,
+    onScrollOffsetChange,
+    hasMore,
+    isLoadingMore,
+    onLoadMore: loadMore,
+  });
+
+  return buildCatalogFeedProps({
+    heroFeaturedCars: featuredCars.map((car) =>
+      buildHeroCard({
+        car,
+        typeLabel: carTypeLabel,
+        priceLabel: "",
+        sellerTypeLabel,
+        postedAtLabel,
+      }),
+    ),
+    heroSellCars: [],
+    isFeaturedCarsLoading,
+    hasFeaturedCarsError,
+    featuredLabel,
+    sellLabel,
+    featuredLoadingLabel,
+    featuredErrorLabel,
+    fixedPanel: "FEATURED",
+    headerTitle,
+    searchPlaceholder,
+    cards: cars.map((car) => buildFeedCard({ car, sellerTypeLabel, postedAtLabel })),
     isLoading,
     isLoadingMore,
-    isRefreshing,
     hasMore,
-    loadMore,
-    handleScroll,
-    handleRefresh,
-    openSearch: () => {
-      setDraftFilters(appliedFilters);
-      setIsSearchOpen(true);
-    },
-    closeSearch: () => {
-      setDraftFilters(appliedFilters);
-      setIsSearchOpen(false);
-    },
-    setDraftQuery: (query: string) =>
-      setDraftFilters((current) => ({
-        ...current,
-        query,
-      })),
-    setDraftBrand: (brand?: string) =>
-      setDraftFilters((current) => ({
-        ...current,
-        brand,
-        model: current.brand === brand ? current.model : [],
-      })),
-    toggleDraftModel: (model: string) =>
-      setDraftFilters((current) => {
-        const currentModels = current.model ?? [];
-        const hasModel = currentModels.includes(model);
-
-        return {
-          ...current,
-          model: hasModel
-            ? currentModels.filter((item) => item !== model)
-            : [...currentModels, model],
-        };
-      }),
-    setDraftCarType: (carType?: string) =>
-      setDraftFilters((current) => ({
-        ...current,
-        carType,
-      })),
-    setDraftPriceFrom: (priceFrom?: number) =>
-      setDraftFilters((current) => ({
-        ...current,
-        priceFrom,
-        priceTo:
-          current.priceTo !== undefined &&
-          priceFrom !== undefined &&
-          current.priceTo < priceFrom
-            ? undefined
-            : current.priceTo,
-      })),
-    setDraftPriceTo: (priceTo?: number) =>
-      setDraftFilters((current) => ({
-        ...current,
-        priceTo,
-        priceFrom:
-          current.priceFrom !== undefined &&
-          priceTo !== undefined &&
-          current.priceFrom > priceTo
-            ? undefined
-            : current.priceFrom,
-      })),
-    setDraftYearFrom: (yearFrom?: number) =>
-      setDraftFilters((current) => ({
-        ...current,
-        yearFrom,
-        yearTo:
-          current.yearTo && yearFrom && current.yearTo < yearFrom ? undefined : current.yearTo,
-      })),
-    setDraftYearTo: (yearTo?: number) =>
-      setDraftFilters((current) => ({
-        ...current,
-        yearTo,
-        yearFrom:
-          current.yearFrom && yearTo && current.yearFrom > yearTo ? undefined : current.yearFrom,
-      })),
-    setDraftMileageFrom: (mileageFrom?: number) =>
-      setDraftFilters((current) => ({
-        ...current,
-        mileageFrom,
-        mileageTo:
-          current.mileageTo !== undefined &&
-          mileageFrom !== undefined &&
-          current.mileageTo < mileageFrom
-            ? undefined
-            : current.mileageTo,
-      })),
-    setDraftMileageTo: (mileageTo?: number) =>
-      setDraftFilters((current) => ({
-        ...current,
-        mileageTo,
-        mileageFrom:
-          current.mileageFrom !== undefined &&
-          mileageTo !== undefined &&
-          current.mileageFrom > mileageTo
-            ? undefined
-            : current.mileageFrom,
-      })),
-    setDraftCondition: (condition?: string) =>
-      setDraftFilters((current) => ({
-        ...current,
-        condition,
-      })),
-    setDraftTransmission: (transmission?: string) =>
-      setDraftFilters((current) => ({
-        ...current,
-        transmission,
-      })),
-    setDraftFuelType: (fuelType?: string) =>
-      setDraftFilters((current) => ({
-        ...current,
-        fuelType,
-      })),
-    toggleMoreFilters: () => setShowMoreFilters((current) => !current),
-    applySearch: () => {
-      setAppliedFilters(draftFilters);
-      setIsSearchOpen(false);
-    },
-  };
+    loadingLabel,
+    emptyResultsLabel,
+    loadingMoreLabel,
+    defaultCardsLayout,
+    filteredCardsLayout,
+    showHeader: false,
+    listRef,
+    onOpenCar,
+    onLoadMore: loadMore,
+    onScroll,
+  });
 };

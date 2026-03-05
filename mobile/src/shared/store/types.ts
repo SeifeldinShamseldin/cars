@@ -2,34 +2,29 @@ import type {
   ErrorPayload,
   GameEndedPayload,
   GameStartedPayload,
-  GameType,
   GuessCarRoundEndedResults,
   GuessCarRoundStartedPayload,
   ImposterRoundEndedResults,
   ImposterRoundStartedPayload,
-  RoomClosedPayload,
   RoomCreatedEvt,
   RoomJoinedEvt,
   RoomStateEvt,
   RoomStatePublic,
-  RoomStatus,
   RoomUpdatedEvt,
   RoundEndedPayload,
   RoundStartedPayload,
 } from "../../../shared/types/domain";
+import type { SellerProfile } from "../api/sellerAccess";
+import type { SellerAccessSlice } from "./slices/sellerAccessSlice";
 
 export type RoomSlice = {
   roomState?: RoomStatePublic;
   roomCode?: string;
   playerToken?: string;
   hostKey?: string;
-  gameType: GameType;
-  status: RoomStatus;
-  version: number;
   roundEndsAt?: number;
   roomClosesAt?: number;
   lastError?: ErrorPayload;
-  isConnected: boolean;
 };
 
 export type GuessCarSlice = {
@@ -46,8 +41,16 @@ export type ImposterSlice = {
 
 export type AppStore = RoomSlice &
   GuessCarSlice &
-  ImposterSlice & {
-    setConnection: (isConnected: boolean) => void;
+  ImposterSlice &
+  SellerAccessSlice & {
+    setSellerAccessSession: (payload: {
+      accessToken: string;
+      refreshToken: string;
+      phone: string;
+      hasProfile: boolean;
+    }) => void;
+    clearSellerAccessSession: () => void;
+    setSellerProfile: (profile: SellerProfile) => void;
     handleRoomCreated: (payload: RoomCreatedEvt) => void;
     handleRoomJoined: (payload: RoomJoinedEvt) => void;
     handleRoomState: (payload: RoomStateEvt) => void;
@@ -56,7 +59,7 @@ export type AppStore = RoomSlice &
     handleRoundStarted: (payload: RoundStartedPayload) => void;
     handleRoundEnded: (payload: RoundEndedPayload) => void;
     handleGameEnded: (payload: GameEndedPayload) => void;
-    handleRoomClosed: (payload: RoomClosedPayload) => void;
+    handleRoomClosed: () => void;
     handleError: (payload: ErrorPayload) => void;
     dismissError: () => void;
     setSelectedOption: (optionId: string) => void;

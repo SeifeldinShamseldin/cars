@@ -23,7 +23,6 @@ export const useRoomStore = () =>
 export const useRoomActions = () =>
   useAppStore(
     useShallow((state) => ({
-      setConnection: state.setConnection,
       handleRoomCreated: state.handleRoomCreated,
       handleRoomJoined: state.handleRoomJoined,
       handleRoomState: state.handleRoomState,
@@ -38,5 +37,25 @@ export const useRoomActions = () =>
       setSelectedOption: state.setSelectedOption,
       markGuessSubmitted: state.markGuessSubmitted,
       resetSession: state.resetSession,
+    })),
+  );
+
+export const useSellerAccessState = () =>
+  useAppStore(
+    useShallow((state) => ({
+      sellerAccessToken: state.sellerAccessToken,
+      sellerAccessRefreshToken: state.sellerAccessRefreshToken,
+      sellerAccessPhone: state.sellerAccessPhone,
+      hasSellerProfile: state.hasSellerProfile,
+      sellerProfile: state.sellerProfile,
+    })),
+  );
+
+export const useSellerAccessActions = () =>
+  useAppStore(
+    useShallow((state) => ({
+      setSellerAccessSession: state.setSellerAccessSession,
+      clearSellerAccessSession: state.clearSellerAccessSession,
+      setSellerProfile: state.setSellerProfile,
     })),
   );

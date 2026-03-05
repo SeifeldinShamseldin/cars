@@ -153,7 +153,7 @@ export type GameEndedPayload = {
 };
 
 export type RoomClosedPayload = {
-  reason: "GAME_FINISHED";
+  reason: "GAME_FINISHED" | "HOST_EXITED";
 };
 
 export type ErrorPayload = {
@@ -161,7 +161,15 @@ export type ErrorPayload = {
   message: string;
 };
 
-export type RoomCreateCmd = { nickname: string };
+export type CatalogRefreshPayload = {
+  reason: "ADMIN_FORCE_UPDATE";
+  requestedAt: number;
+};
+
+export type RoomCreateCmd = {
+  nickname: string;
+  gameType?: "GUESS_CAR" | "IMPOSTER";
+};
 export type RoomJoinCmd = { roomCode: RoomCode; nickname: string };
 export type RoomLeaveCmd = { roomCode: RoomCode; playerToken: string };
 export type RoomSyncCmd = {
@@ -176,6 +184,8 @@ export type GameSelectCmd = {
   gameType: "GUESS_CAR" | "IMPOSTER";
 };
 export type GameStartCmd = { roomCode: RoomCode; hostKey: string };
+export type GameExitCmd = { roomCode: RoomCode; hostKey: string };
+export type GameRematchCmd = { roomCode: RoomCode; hostKey: string };
 export type GameNextCmd = { roomCode: RoomCode; hostKey: string };
 
 export type GuessSubmitCmd = {
@@ -207,6 +217,8 @@ export type ClientToServerEvents = {
   "room.sync": (payload: RoomSyncCmd) => void;
   "game.select": (payload: GameSelectCmd) => void;
   "game.start": (payload: GameStartCmd) => void;
+  "game.exit": (payload: GameExitCmd) => void;
+  "game.rematch": (payload: GameRematchCmd) => void;
   "game.next": (payload: GameNextCmd) => void;
   "guess.submit": (payload: GuessSubmitCmd) => void;
 };
@@ -217,6 +229,7 @@ export type ServerToClientEvents = {
   "room.state": (payload: RoomStateEvt) => void;
   "room.updated": (payload: RoomUpdatedEvt) => void;
   "room.closed": (payload: RoomClosedPayload) => void;
+  "catalog.refresh": (payload: CatalogRefreshPayload) => void;
   "game.started": (payload: GameStartedPayload) => void;
   "round.started": (payload: RoundStartedPayload) => void;
   "round.ended": (payload: RoundEndedPayload) => void;
