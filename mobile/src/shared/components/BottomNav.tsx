@@ -3,6 +3,7 @@ import { Animated, Pressable, StyleSheet, View } from "react-native";
 import { Icon } from "react-native-paper";
 
 import { appColors } from "../theme/paperTheme";
+import { appRadii, appShadows, appSpacing } from "../theme/tokens";
 
 export type BottomNavTab = "SELL" | "UPDATES" | "GAMES" | "PROFILE";
 
@@ -21,8 +22,8 @@ const tabs = [
   { id: "GAMES" as const, icon: "gamepad-variant-outline" },
   { id: "PROFILE" as const, icon: "account-outline" },
 ];
-const SHELL_HORIZONTAL_PADDING = 16;
-const ACTIVE_BUBBLE_SIZE = 60;
+const SHELL_HORIZONTAL_PADDING = appSpacing.xl;
+const ACTIVE_BUBBLE_SIZE = 58;
 
 export const BottomNav = ({
   activeTab,
@@ -81,14 +82,14 @@ export const BottomNav = ({
                   width: ACTIVE_BUBBLE_SIZE,
                   height: ACTIVE_BUBBLE_SIZE,
                   borderRadius: ACTIVE_BUBBLE_SIZE / 2,
-                  transform: [{ translateX: activeTranslateX }],
-                },
-              ]}
+              transform: [{ translateX: activeTranslateX }],
+            },
+          ]}
           >
             <Icon
               source={tabs[activeIndex]?.icon ?? tabs[0].icon}
               size={26}
-              color={appColors.primaryDeep}
+              color={appColors.inkDark}
             />
           </Animated.View>
         ) : null}
@@ -109,7 +110,7 @@ export const BottomNav = ({
                 <Icon
                   source={tab.icon}
                   size={24}
-                  color={isActive ? "transparent" : appColors.inkSoft}
+                  color={isActive ? "transparent" : appColors.muted}
                 />
               </Pressable>
             );
@@ -124,23 +125,20 @@ const styles = StyleSheet.create({
   wrapper: {
     paddingHorizontal: 0,
     paddingTop: 0,
+    paddingBottom: 0,
     backgroundColor: "transparent",
     pointerEvents: "box-none",
   },
   shell: {
     position: "relative",
-    borderRadius: 18,
-    backgroundColor: appColors.surfaceAlt,
+    borderRadius: appRadii.xxxl,
+    backgroundColor: appColors.background,
     borderWidth: 1,
-    borderColor: appColors.ice,
-    paddingTop: 18,
-    paddingBottom: 10,
+    borderColor: appColors.borderStrong,
+    paddingTop: appSpacing.xl,
+    paddingBottom: appSpacing.lg,
     paddingHorizontal: SHELL_HORIZONTAL_PADDING,
-    shadowColor: "#000000",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.22,
-    shadowRadius: 16,
-    elevation: 8,
+    ...appShadows.lg,
   },
   row: {
     flexDirection: "row",
@@ -154,14 +152,10 @@ const styles = StyleSheet.create({
   },
   activeBubble: {
     position: "absolute",
-    top: -10,
-    backgroundColor: appColors.primary,
+    top: -appSpacing.md,
+    backgroundColor: appColors.sand,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#000000",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.2,
-    shadowRadius: 14,
-    elevation: 6,
+    ...appShadows.md,
   },
 });

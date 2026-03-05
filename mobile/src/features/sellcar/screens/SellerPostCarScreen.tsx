@@ -5,6 +5,7 @@ import { Button, Card, Chip, HelperText, Text, TextInput } from "react-native-pa
 import type { SellerListingOption } from "../../../shared/lib/sellerListingOptions";
 import { BackArrow } from "../../../shared/components/BackArrow";
 import { appColors } from "../../../shared/theme/paperTheme";
+import { appRadii, appSpacing } from "../../../shared/theme/tokens";
 import { fontFamilies } from "../../../shared/theme/typography";
 
 type SellerPostCarScreenProps = {
@@ -110,6 +111,12 @@ const OptionGroup = ({
   </View>
 );
 
+const inputProps = {
+  textColor: appColors.white,
+  placeholderTextColor: appColors.muted,
+  selectionColor: appColors.primary,
+};
+
 export const SellerPostCarScreen = ({
   title,
   subtitle,
@@ -132,7 +139,6 @@ export const SellerPostCarScreen = ({
   photosHelperLabel,
   removePhotoLabel,
   submitLabel,
-  backLabel,
   brandHelperLabel,
   modelHelperLabel,
   emptyModelsLabel,
@@ -186,7 +192,7 @@ export const SellerPostCarScreen = ({
   <Pressable onPress={Keyboard.dismiss} style={styles.pressable}>
     <Card mode="elevated" style={styles.card}>
       <Card.Content style={styles.content}>
-        <BackArrow label={backLabel} onPress={onBack} />
+        <BackArrow onPress={onBack} />
         <Text style={styles.title}>{title}</Text>
         <Text variant="bodyLarge" style={styles.subtitle}>
           {subtitle}
@@ -200,6 +206,7 @@ export const SellerPostCarScreen = ({
             keyboardShouldPersistTaps="handled"
           >
           <TextInput
+            {...inputProps}
             mode="flat"
             label={brandLabel}
             value={brandValue}
@@ -220,6 +227,7 @@ export const SellerPostCarScreen = ({
           </View>
 
         <TextInput
+          {...inputProps}
           mode="flat"
           label={modelLabel}
           value={modelValue}
@@ -242,6 +250,7 @@ export const SellerPostCarScreen = ({
 
         <View style={styles.grid}>
           <TextInput
+            {...inputProps}
             mode="flat"
             label={yearLabel}
             value={yearValue}
@@ -252,6 +261,7 @@ export const SellerPostCarScreen = ({
             activeUnderlineColor="transparent"
           />
           <TextInput
+            {...inputProps}
             mode="flat"
             label={priceLabel}
             value={priceValue}
@@ -262,6 +272,7 @@ export const SellerPostCarScreen = ({
             activeUnderlineColor="transparent"
           />
           <TextInput
+            {...inputProps}
             mode="flat"
             label={mileageLabel}
             value={mileageValue}
@@ -272,6 +283,7 @@ export const SellerPostCarScreen = ({
             activeUnderlineColor="transparent"
           />
           <TextInput
+            {...inputProps}
             mode="flat"
             label={rimSizeLabel}
             value={rimSizeValue}
@@ -284,6 +296,7 @@ export const SellerPostCarScreen = ({
         </View>
 
         <TextInput
+          {...inputProps}
           mode="flat"
           label={colorLabel}
           value={colorValue}
@@ -363,6 +376,7 @@ export const SellerPostCarScreen = ({
         </View>
 
           <TextInput
+            {...inputProps}
             mode="flat"
             label={descriptionLabel}
             value={descriptionValue}
@@ -386,6 +400,7 @@ export const SellerPostCarScreen = ({
           disabled={isSubmitting}
           style={styles.button}
           contentStyle={styles.buttonContent}
+          labelStyle={styles.buttonLabel}
         >
           {submitLabel}
         </Button>
@@ -399,95 +414,100 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   card: {
-    borderRadius: 24,
-    backgroundColor: appColors.surface,
+    borderRadius: appRadii.xxxl,
+    backgroundColor: appColors.mutedCard,
     borderWidth: 1,
-    borderColor: appColors.ice,
+    borderColor: appColors.border,
   },
   content: {
-    gap: 14,
+    gap: appSpacing.lg2,
   },
   formArea: {
     maxHeight: 440,
   },
   title: {
-    color: appColors.ink,
+    color: appColors.white,
     fontSize: 28,
     lineHeight: 34,
     fontFamily: fontFamilies.displayBold,
   },
   subtitle: {
-    color: appColors.inkSoft,
+    color: appColors.muted,
     lineHeight: 22,
   },
   formScroll: {
     maxHeight: 440,
   },
   formContent: {
-    gap: 12,
-    paddingBottom: 6,
+    gap: appSpacing.lg,
+    paddingBottom: appSpacing.sm,
   },
   input: {
-    backgroundColor: appColors.surfaceAlt,
-    borderRadius: 18,
+    backgroundColor: appColors.inputBg,
+    borderWidth: 1,
+    borderColor: appColors.inputBorder,
+    borderRadius: appRadii.xl,
   },
   helper: {
-    color: appColors.inkSoft,
+    color: appColors.muted,
     marginLeft: 0,
   },
   grid: {
-    gap: 12,
+    gap: appSpacing.lg,
   },
   optionGroup: {
-    gap: 10,
+    gap: appSpacing.md2,
   },
   optionLabel: {
-    color: appColors.ink,
+    color: appColors.white,
     fontSize: 16,
     fontFamily: fontFamilies.display,
   },
   chipRow: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 8,
+    gap: appSpacing.md,
   },
   chip: {
     backgroundColor: appColors.surfaceAlt,
   },
   photosHelper: {
-    color: appColors.inkSoft,
+    color: appColors.muted,
     lineHeight: 20,
   },
   addPhotosButton: {
-    borderRadius: 16,
-    borderColor: appColors.ice,
+    borderRadius: appRadii.lg,
+    borderColor: appColors.border,
   },
   addPhotosLabel: {
-    color: appColors.ink,
+    color: appColors.white,
   },
   photoGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 12,
+    gap: appSpacing.lg,
   },
   photoCard: {
     width: 110,
-    gap: 8,
+    gap: appSpacing.md,
   },
   photoPreview: {
     width: 110,
     height: 90,
-    borderRadius: 14,
+    borderRadius: appRadii.md,
     backgroundColor: appColors.surfaceAlt,
   },
   removePhotoLabel: {
     color: appColors.danger,
   },
   button: {
-    borderRadius: 18,
-    backgroundColor: appColors.primary,
+    borderRadius: appRadii.xl,
+    backgroundColor: appColors.white,
   },
   buttonContent: {
     minHeight: 56,
+  },
+  buttonLabel: {
+    color: appColors.inkDark,
   },
 });

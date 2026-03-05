@@ -2,6 +2,7 @@ import { StyleSheet, View } from "react-native";
 import { Button, Card, HelperText, Text, TextInput } from "react-native-paper";
 
 import { appColors } from "../../../shared/theme/paperTheme";
+import { appRadii, appSpacing } from "../../../shared/theme/tokens";
 import { fontFamilies } from "../../../shared/theme/typography";
 
 type NameSetupScreenProps = {
@@ -15,6 +16,12 @@ type NameSetupScreenProps = {
   isSaving: boolean;
   onChange: (value: string) => void;
   onSubmit: () => void;
+};
+
+const inputProps = {
+  textColor: appColors.white,
+  placeholderTextColor: appColors.muted,
+  selectionColor: appColors.primary,
 };
 
 export const NameSetupScreen = ({
@@ -39,6 +46,7 @@ export const NameSetupScreen = ({
           {subtitle}
         </Text>
         <TextInput
+          {...inputProps}
           mode="flat"
           label={nameLabel}
           value={value}
@@ -57,6 +65,7 @@ export const NameSetupScreen = ({
           disabled={!value.trim() || isSaving}
           contentStyle={styles.buttonContent}
           style={styles.button}
+          labelStyle={styles.buttonLabel}
         >
           {continueLabel}
         </Button>
@@ -69,7 +78,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: "center",
-    gap: 18,
+    gap: appSpacing.xl2,
   },
   topMarker: {
     width: 74,
@@ -79,14 +88,14 @@ const styles = StyleSheet.create({
     alignSelf: "flex-end",
   },
   card: {
-    borderRadius: 28,
-    backgroundColor: appColors.surface,
+    borderRadius: appRadii.mega,
+    backgroundColor: appColors.mutedCard,
     borderWidth: 1,
-    borderColor: appColors.ice,
+    borderColor: appColors.border,
   },
   content: {
-    gap: 16,
-    paddingVertical: 10,
+    gap: appSpacing.xl,
+    paddingVertical: appSpacing.md2,
   },
   eyebrow: {
     color: appColors.primary,
@@ -95,7 +104,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
   },
   title: {
-    color: appColors.ink,
+    color: appColors.white,
     fontSize: 34,
     lineHeight: 40,
     fontFamily: fontFamilies.displayBold,
@@ -104,22 +113,27 @@ const styles = StyleSheet.create({
     paddingBottom: 4,
   },
   subtitle: {
-    color: appColors.inkSoft,
+    color: appColors.muted,
     lineHeight: 22,
   },
   input: {
-    backgroundColor: appColors.surfaceAlt,
-    borderRadius: 18,
+    backgroundColor: appColors.inputBg,
+    borderWidth: 1,
+    borderColor: appColors.inputBorder,
+    borderRadius: appRadii.xl,
   },
   helper: {
-    color: appColors.inkSoft,
+    color: appColors.muted,
     marginLeft: 0,
   },
   button: {
-    borderRadius: 18,
-    backgroundColor: appColors.primary,
+    borderRadius: appRadii.xl,
+    backgroundColor: appColors.white,
   },
   buttonContent: {
     minHeight: 56,
+  },
+  buttonLabel: {
+    color: appColors.inkDark,
   },
 });

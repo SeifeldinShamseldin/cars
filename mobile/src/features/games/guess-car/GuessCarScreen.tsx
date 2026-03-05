@@ -1,5 +1,5 @@
-import { StyleSheet, useWindowDimensions, View } from "react-native";
-import { Button, Card, Chip, Text } from "react-native-paper";
+import { Pressable, StyleSheet, useWindowDimensions, View } from "react-native";
+import { Text } from "react-native-paper";
 
 import type {
   GuessCarRoundEndedResults,
@@ -8,6 +8,7 @@ import type {
 import { CountdownPill } from "../../../shared/components/CountdownPill";
 import { ResponsiveImage } from "../../../shared/components/ResponsiveImage";
 import { appColors } from "../../../shared/theme/paperTheme";
+import { appRadii, appSpacing, withAlpha } from "../../../shared/theme/tokens";
 import { fontFamilies } from "../../../shared/theme/typography";
 
 type GuessCarScreenProps = {
@@ -89,24 +90,28 @@ export const GuessCarScreen = ({
   const isCompact = width < 390;
   const imageHeight = isCompact ? 190 : 220;
 
+  // ── Waiting state ──────────────────────────────────────────────────────────
   if (!payload) {
     return (
-      <Card mode="elevated" style={styles.card}>
-        <Card.Content style={styles.section}>
-          <Text style={styles.waitingTitle}>{waitingLabel}</Text>
-          {roomClosesAt ? (
-            <CountdownPill targetTime={roomClosesAt} label={roomClosesLabel} />
-          ) : null}
-        </Card.Content>
-      </Card>
+      <View style={styles.card}>
+        <Text style={styles.waitingTitle}>{waitingLabel}</Text>
+        {roomClosesAt ? (
+          <CountdownPill targetTime={roomClosesAt} label={roomClosesLabel} />
+        ) : null}
+      </View>
     );
   }
 
+  // ── Results state ──────────────────────────────────────────────────────────
   if (results) {
     return (
       <>
-        <Card mode="elevated" style={styles.heroCard}>
-          <Card.Content style={styles.heroSection}>
+        {/* Winner hero card */}
+        <View style={styles.heroCard}>
+          <Text style={styles.heroWatermark} numberOfLines={1}>
+            {results.winnerNickname ?? "—"}
+          </Text>
+          <View style={styles.heroContent}>
             <View style={styles.topRow}>
               <Text style={styles.eyebrow}>{eyebrow}</Text>
               {roomClosesAt ? (
@@ -118,69 +123,70 @@ export const GuessCarScreen = ({
                 ? winnerLabel.replace("{name}", results.winnerNickname)
                 : noWinnerLabel}
             </Text>
-            <View style={styles.resultMeta}>
-              <Chip compact style={styles.resultChip}>
-                {correctOptionLabel.replace("{value}", results.correctOptionId)}
-              </Chip>
-              <Chip compact style={styles.resultChip}>
-                {answeredPlayersLabel.replace("{count}", String(results.answeredCount))}
-              </Chip>
-            </View>
-          </Card.Content>
-        </Card>
-
-        <Card mode="elevated" style={styles.card}>
-          <Card.Content style={styles.section}>
-            <Text style={styles.sectionTitle}>{leaderboardLabel}</Text>
-            {results.standings.map((entry, index) => (
-              <View key={entry.playerId} style={styles.standingRow}>
-                <View style={styles.standingLeft}>
-                  <Text style={styles.standingRank}>#{index + 1}</Text>
-                  <View style={styles.standingCopy}>
-                    <Text style={styles.standingName}>{entry.nickname}</Text>
-                    <Text style={styles.standingMeta}>
-                      {roundPointsLabel.replace("{count}", String(entry.roundPoints))}
-                    </Text>
-                  </View>
-                </View>
-                <Text style={styles.standingScore}>
-                  {totalPointsLabel.replace("{count}", String(entry.totalPoints))}
+            <View style={styles.chipRow}>
+              <View style={styles.chip}>
+                <Text style={styles.chipText}>
+                  {correctOptionLabel.replace("{value}", results.correctOptionId)}
                 </Text>
               </View>
-            ))}
-            <View style={styles.footerActions}>
-              {roomClosesAt ? (
-                <Button
-                mode="contained"
-                onPress={onRematchGame}
-                style={styles.rematchButton}
-                contentStyle={styles.exitButtonContent}
-                labelStyle={styles.rematchButtonLabel}
-                >
-                  {rematchLabel}
-                </Button>
-              ) : null}
-              {roomClosesAt ? (
-                <Button
-                  mode="outlined"
-                  onPress={onLeaveRoom}
-                  style={styles.leaveButton}
-                  labelStyle={styles.leaveButtonLabel}
-                >
-                  {leaveRoomLabel}
-                </Button>
-              ) : null}
+              <View style={styles.chip}>
+                <Text style={styles.chipText}>
+                  {answeredPlayersLabel.replace("{count}", String(results.answeredCount))}
+                </Text>
+              </View>
             </View>
-          </Card.Content>
-        </Card>
+          </View>
+        </View>
+
+        {/* Leaderboard card */}
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>{leaderboardLabel}</Text>
+
+          {results.standings.map((entry, index) => (
+            <View
+              key={entry.playerId}
+              style={[styles.standingRow, index === 0 && styles.standingRowFirst]}
+            >
+              <View style={styles.standingLeft}>
+                <Text style={[styles.standingRank, index === 0 && styles.standingRankFirst]}>
+                  #{index + 1}
+                </Text>
+                <View style={styles.standingCopy}>
+                  <Text style={styles.standingName}>{entry.nickname}</Text>
+                  <Text style={styles.standingMeta}>
+                    {roundPointsLabel.replace("{count}", String(entry.roundPoints))}
+                  </Text>
+                </View>
+              </View>
+              <Text style={[styles.standingScore, index === 0 && styles.standingScoreFirst]}>
+                {totalPointsLabel.replace("{count}", String(entry.totalPoints))}
+              </Text>
+            </View>
+          ))}
+
+          <View style={styles.footerActions}>
+            {roomClosesAt ? (
+              <Pressable style={styles.rematchButton} onPress={onRematchGame}>
+                <Text style={styles.rematchButtonText}>{rematchLabel}</Text>
+              </Pressable>
+            ) : null}
+            {roomClosesAt ? (
+              <Pressable style={styles.leaveButton} onPress={onLeaveRoom}>
+                <Text style={styles.leaveButtonText}>{leaveRoomLabel}</Text>
+              </Pressable>
+            ) : null}
+          </View>
+        </View>
       </>
     );
   }
 
+  // ── Active round ───────────────────────────────────────────────────────────
   return (
     <>
-      <Card mode="elevated" style={styles.heroCard}>
-        <Card.Content style={styles.heroSection}>
+      {/* Hero — clue or image */}
+      <View style={styles.heroCard}>
+        <View style={styles.heroContent}>
           <View style={styles.topRow}>
             <Text style={styles.eyebrow}>{eyebrow}</Text>
             <CountdownPill targetTime={roundEndsAt} label={timeLeftLabel} />
@@ -188,247 +194,368 @@ export const GuessCarScreen = ({
           <Text style={[styles.title, isCompact && styles.titleCompact]}>{roundTitle}</Text>
 
           {payload.mode === "CLUE" ? (
-            <View style={styles.clues}>
-              <View style={styles.clueCard}>
-                <Text style={styles.clueLine}>
-                  {countryLabel.replace("{value}", payload.clue.country ?? "-")}
-                </Text>
-                <Text style={styles.clueLine}>
-                  {ccLabel.replace("{value}", String(payload.clue.cc ?? "-"))}
-                </Text>
-                <Text style={styles.clueLine}>
-                  {hpLabel.replace("{value}", String(payload.clue.hp ?? "-"))}
-                </Text>
-                <Text style={styles.clueLine}>
-                  {torqueLabel.replace("{value}", String(payload.clue.torque ?? "-"))}
-                </Text>
-                <Text style={styles.clueLine}>
-                  {specialLabel.replace("{value}", payload.clue.special ?? noSpecialLabel)}
-                </Text>
-              </View>
+            <View style={styles.clueCard}>
+              {[
+                countryLabel.replace("{value}", payload.clue.country ?? "—"),
+                ccLabel.replace("{value}", String(payload.clue.cc ?? "—")),
+                hpLabel.replace("{value}", String(payload.clue.hp ?? "—")),
+                torqueLabel.replace("{value}", String(payload.clue.torque ?? "—")),
+                specialLabel.replace("{value}", payload.clue.special ?? noSpecialLabel),
+              ].map((line, i) => (
+                <View key={i} style={styles.clueRow}>
+                  <View style={styles.clueDot} />
+                  <Text style={styles.clueLine}>{line}</Text>
+                </View>
+              ))}
             </View>
           ) : (
             <ResponsiveImage
               source={payload.partImageUrl}
               height={imageHeight}
               borderRadius={18}
-              backgroundColor={appColors.surfaceAlt}
+              backgroundColor={appColors.surfaceMuted}
               priority="high"
             />
           )}
-        </Card.Content>
-      </Card>
+        </View>
+      </View>
 
-      <Card mode="elevated" style={styles.card}>
-        <Card.Content style={styles.section}>
-          <Text style={styles.sectionTitle}>{chooseOptionLabel}</Text>
-          {disabled ? <Text style={styles.metaText}>{submittedLabel}</Text> : null}
-          {payload.options.map((option) => {
-            const isActive = selectedOptionId === option.id;
+      {/* Options card */}
+      <View style={styles.card}>
+        <Text style={styles.sectionTitle}>{chooseOptionLabel}</Text>
 
-            return (
-              <Button
-                key={option.id}
-                mode={isActive ? "contained" : "contained-tonal"}
-                disabled={disabled}
-                style={isActive ? styles.optionActive : styles.optionButton}
-                contentStyle={styles.optionContent}
-                onPress={() => {
-                  onSelectOption(option.id);
-                  onSubmitOption(option.id);
-                }}
-              >
+        {disabled ? (
+          <View style={styles.submittedBanner}>
+            <Text style={styles.submittedText}>{submittedLabel}</Text>
+          </View>
+        ) : null}
+
+        {payload.options.map((option) => {
+          const isActive = selectedOptionId === option.id;
+          return (
+            <Pressable
+              key={option.id}
+              disabled={disabled}
+              style={[
+                styles.optionButton,
+                isActive && styles.optionButtonActive,
+                disabled && !isActive && styles.optionButtonDisabled,
+              ]}
+              onPress={() => {
+                onSelectOption(option.id);
+                onSubmitOption(option.id);
+              }}
+            >
+              <Text style={[styles.optionText, isActive && styles.optionTextActive]}>
                 {option.label}
-              </Button>
-            );
-          })}
-          <Button
-            mode="contained"
-            onPress={onExitGame}
-            style={styles.exitButton}
-            contentStyle={styles.exitButtonContent}
-            labelStyle={styles.exitButtonLabel}
-          >
-            {exitGameLabel}
-          </Button>
-        </Card.Content>
-      </Card>
+              </Text>
+            </Pressable>
+          );
+        })}
+
+        <Pressable style={styles.exitButton} onPress={onExitGame}>
+          <Text style={styles.exitButtonText}>{exitGameLabel}</Text>
+        </Pressable>
+      </View>
     </>
   );
 };
 
 const styles = StyleSheet.create({
+  // ── Hero card ─────────────────────────────────────────────────────────────
   heroCard: {
-    borderRadius: 28,
-    backgroundColor: appColors.surface,
+    borderRadius: appRadii.mega,
+    backgroundColor: appColors.mutedCard,
     borderWidth: 1,
-    borderColor: appColors.ice,
-  },
-  card: {
-    borderRadius: 24,
-    backgroundColor: appColors.surface,
-    borderWidth: 1,
-    borderColor: appColors.ice,
-  },
-  heroSection: {
-    gap: 14,
+    borderColor: appColors.border,
+    overflow: "hidden",
     minHeight: 226,
     justifyContent: "flex-end",
   },
-  section: {
-    gap: 14,
+  heroWatermark: {
+    position: "absolute",
+    bottom: -14,
+    left: -4,
+    right: -4,
+    color: appColors.white,
+    opacity: 0.04,
+    fontFamily: fontFamilies.displayBold,
+    fontSize: 88,
+    lineHeight: 88,
+    textTransform: "uppercase",
+    letterSpacing: -3,
+  },
+  heroContent: {
+    gap: appSpacing.lg2,
+    padding: appSpacing.xxl,
   },
   topRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
-    gap: 12,
-  },
-  resultMeta: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  resultChip: {
-    backgroundColor: appColors.surfaceAlt,
+    gap: appSpacing.lg,
   },
   eyebrow: {
     color: appColors.primary,
     fontFamily: fontFamilies.displayBold,
     textTransform: "uppercase",
-    letterSpacing: 0.8,
+    letterSpacing: 1.5,
+    fontSize: 11,
+    lineHeight: 14,
   },
   title: {
-    color: appColors.ink,
+    color: appColors.white,
     fontSize: 34,
-    lineHeight: 40,
+    lineHeight: 38,
     fontFamily: fontFamilies.displayBold,
-    flex: 1,
-    textTransform: "none",
-    paddingTop: 2,
+    textTransform: "uppercase",
+    letterSpacing: -0.5,
     paddingBottom: 4,
   },
   titleCompact: {
-    fontSize: 30,
-    lineHeight: 34,
+    fontSize: 28,
+    lineHeight: 32,
   },
-  clues: {
-    gap: 8,
+  chipRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: appSpacing.md,
   },
-  clueCard: {
-    gap: 8,
-    borderRadius: 18,
+  chip: {
+    borderRadius: appRadii.pill,
     backgroundColor: appColors.surfaceAlt,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: appColors.borderStrong,
+    paddingHorizontal: appSpacing.lg2,
+    paddingVertical: 7,
+  },
+  chipText: {
+    color: appColors.muted,
+    fontFamily: fontFamilies.displayBold,
+    fontSize: 12,
+    lineHeight: 14,
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+  },
+
+  // ── Clue card ─────────────────────────────────────────────────────────────
+  clueCard: {
+    gap: appSpacing.md2,
+    borderRadius: appRadii.xl,
+    backgroundColor: appColors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: appColors.border,
+    paddingHorizontal: appSpacing.xl,
+    paddingVertical: appSpacing.lg2,
+  },
+  clueRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: appSpacing.md2,
+  },
+  clueDot: {
+    width: 6,
+    height: 6,
+    borderRadius: appRadii.pill,
+    backgroundColor: appColors.primary,
+    opacity: 0.7,
   },
   clueLine: {
-    color: appColors.inkSoft,
-    fontSize: 17,
-    lineHeight: 22,
+    color: appColors.muted,
+    fontFamily: fontFamilies.body,
+    fontSize: 16,
+    lineHeight: 21,
+  },
+
+  // ── Main card ─────────────────────────────────────────────────────────────
+  card: {
+    borderRadius: appRadii.xxxl,
+    backgroundColor: appColors.mutedCard,
+    borderWidth: 1,
+    borderColor: appColors.border,
+    padding: appSpacing.xxl,
+    gap: appSpacing.lg,
   },
   sectionTitle: {
-    color: appColors.ink,
-    fontSize: 24,
-    lineHeight: 30,
-    fontFamily: fontFamilies.displayBold,
-    textTransform: "none",
-    paddingTop: 2,
-    paddingBottom: 2,
-  },
-  optionButton: {
-    borderRadius: 18,
-    backgroundColor: appColors.surfaceAlt,
-  },
-  optionActive: {
-    borderRadius: 18,
-    backgroundColor: appColors.primary,
-  },
-  exitButton: {
-    borderRadius: 18,
-    backgroundColor: appColors.danger,
-    marginTop: 6,
-  },
-  footerActions: {
-    gap: 10,
-    marginTop: 6,
-  },
-  exitButtonContent: {
-    minHeight: 52,
-  },
-  exitButtonLabel: {
     color: appColors.white,
+    fontSize: 22,
+    lineHeight: 26,
+    fontFamily: fontFamilies.displayBold,
+    textTransform: "uppercase",
+    letterSpacing: -0.3,
   },
-  rematchButton: {
-    borderRadius: 18,
-    backgroundColor: appColors.accent,
+
+  // ── Submitted banner ──────────────────────────────────────────────────────
+  submittedBanner: {
+    borderRadius: appRadii.md,
+    backgroundColor: withAlpha(appColors.primary, 0.1),
+    borderWidth: 1,
+    borderColor: withAlpha(appColors.primary, 0.2),
+    paddingHorizontal: 14,
+    paddingVertical: 10,
   },
-  rematchButtonLabel: {
-    color: appColors.ink,
+  submittedText: {
+    color: appColors.primary,
+    fontFamily: fontFamilies.displayBold,
+    fontSize: 13,
+    lineHeight: 16,
+    textTransform: "uppercase",
+    letterSpacing: 1,
   },
-  leaveButton: {
-    borderRadius: 18,
-    borderColor: appColors.ice,
-  },
-  leaveButtonLabel: {
-    color: appColors.inkSoft,
-  },
-  optionContent: {
+
+  // ── Option buttons ────────────────────────────────────────────────────────
+  optionButton: {
+    borderRadius: appRadii.xl,
+    borderWidth: 1,
+    borderColor: appColors.borderStrong,
+    backgroundColor: appColors.surfaceAlt,
     minHeight: 58,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 16,
   },
-  metaText: {
-    color: appColors.inkSoft,
+  optionButtonActive: {
+    backgroundColor: appColors.primary,
+    borderColor: appColors.primary,
   },
+  optionButtonDisabled: {
+    opacity: 0.4,
+  },
+  optionText: {
+    color: appColors.white,
+    fontFamily: fontFamilies.displayBold,
+    fontSize: 15,
+    lineHeight: 18,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  optionTextActive: {
+    color: appColors.inkDark,
+  },
+
+  // ── Exit button ───────────────────────────────────────────────────────────
+  exitButton: {
+    borderRadius: appRadii.xl,
+    backgroundColor: withAlpha(appColors.dangerBright, 0.12),
+    borderWidth: 1,
+    borderColor: withAlpha(appColors.dangerBright, 0.2),
+    minHeight: 52,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 4,
+  },
+  exitButtonText: {
+    color: appColors.dangerBright,
+    fontFamily: fontFamilies.displayBold,
+    fontSize: 14,
+    lineHeight: 16,
+    textTransform: "uppercase",
+    letterSpacing: 1,
+  },
+
+  // ── Leaderboard ───────────────────────────────────────────────────────────
   standingRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    gap: 12,
-    borderRadius: 18,
+    gap: appSpacing.lg,
+    borderRadius: appRadii.xl,
     backgroundColor: appColors.surfaceAlt,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: appColors.border,
+    paddingHorizontal: appSpacing.xl,
+    paddingVertical: appSpacing.lg2,
+  },
+  standingRowFirst: {
+    backgroundColor: withAlpha(appColors.primary, 0.1),
+    borderColor: withAlpha(appColors.primary, 0.22),
   },
   standingLeft: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    gap: appSpacing.lg,
     flex: 1,
   },
   standingRank: {
-    color: appColors.primary,
+    color: appColors.muted,
     fontFamily: fontFamilies.displayBold,
-    fontSize: 16,
+    fontSize: 15,
     lineHeight: 18,
+  },
+  standingRankFirst: {
+    color: appColors.primary,
   },
   standingCopy: {
     gap: 3,
     flex: 1,
   },
   standingName: {
-    color: appColors.ink,
+    color: appColors.white,
     fontFamily: fontFamilies.displayBold,
     fontSize: 15,
     lineHeight: 18,
   },
   standingMeta: {
-    color: appColors.inkSoft,
+    color: appColors.muted,
+    fontFamily: fontFamilies.body,
     fontSize: 12,
     lineHeight: 14,
   },
   standingScore: {
-    color: appColors.primary,
+    color: appColors.muted,
     fontFamily: fontFamilies.displayBold,
     fontSize: 14,
     lineHeight: 16,
   },
+  standingScoreFirst: {
+    color: appColors.primary,
+  },
+
+  // ── Footer actions ────────────────────────────────────────────────────────
+  footerActions: {
+    gap: appSpacing.md2,
+    marginTop: 4,
+  },
+  rematchButton: {
+    borderRadius: appRadii.xl,
+    backgroundColor: appColors.primary,
+    minHeight: 56,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  rematchButtonText: {
+    color: appColors.inkDark,
+    fontFamily: fontFamilies.displayBold,
+    fontSize: 15,
+    lineHeight: 18,
+    textTransform: "uppercase",
+    letterSpacing: 1,
+  },
+  leaveButton: {
+    borderRadius: appRadii.xl,
+    backgroundColor: appColors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: appColors.borderStrong,
+    minHeight: 52,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  leaveButtonText: {
+    color: appColors.muted,
+    fontFamily: fontFamilies.displayBold,
+    fontSize: 14,
+    lineHeight: 16,
+    textTransform: "uppercase",
+    letterSpacing: 1,
+  },
+
+  // ── Waiting state ─────────────────────────────────────────────────────────
   waitingTitle: {
-    color: appColors.ink,
+    color: appColors.white,
     fontSize: 28,
     lineHeight: 34,
     fontFamily: fontFamilies.displayBold,
-    textTransform: "none",
-    paddingTop: 2,
-    paddingBottom: 2,
+    textTransform: "uppercase",
+    letterSpacing: -0.3,
   },
 });

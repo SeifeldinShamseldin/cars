@@ -8,5 +8,5 @@ type SellCarHomeScreenProps = {
 };
 
 export const SellCarHomeScreen = ({ feedProps }: SellCarHomeScreenProps) => (
-  <CarsCatalogFeed {...feedProps} />
+  <CarsCatalogFeed {...feedProps} themeVariant="carDetail" />
 );

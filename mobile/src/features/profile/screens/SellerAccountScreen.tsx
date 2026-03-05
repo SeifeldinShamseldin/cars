@@ -3,6 +3,7 @@ import { Button, Card, Text } from "react-native-paper";
 
 import { BackArrow } from "../../../shared/components/BackArrow";
 import { appColors } from "../../../shared/theme/paperTheme";
+import { appRadii, appSpacing } from "../../../shared/theme/tokens";
 import { fontFamilies } from "../../../shared/theme/typography";
 
 type SellerAccountScreenProps = {
@@ -30,7 +31,6 @@ export const SellerAccountScreen = ({
   sellerName,
   phone,
   sellerType,
-  backLabel,
   onBack,
   onLogout,
 }: SellerAccountScreenProps) => (
@@ -42,7 +42,7 @@ export const SellerAccountScreen = ({
     >
       <Card mode="elevated" style={styles.card}>
         <Card.Content style={styles.content}>
-          <BackArrow label={backLabel} onPress={onBack} />
+          <BackArrow onPress={onBack} />
           <Text style={styles.title}>{title}</Text>
           <Text variant="bodyLarge" style={styles.subtitle}>
             {subtitle}
@@ -84,52 +84,52 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   card: {
-    borderRadius: 24,
-    backgroundColor: appColors.surface,
+    borderRadius: appRadii.xxxl,
+    backgroundColor: appColors.mutedCard,
     borderWidth: 1,
-    borderColor: appColors.ice,
+    borderColor: appColors.border,
   },
   scroll: {
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: 12,
+    paddingBottom: appSpacing.lg,
   },
   content: {
-    gap: 14,
+    gap: appSpacing.lg2,
   },
   title: {
-    color: appColors.ink,
+    color: appColors.white,
     fontSize: 28,
     lineHeight: 34,
     fontFamily: fontFamilies.displayBold,
   },
   subtitle: {
-    color: appColors.inkSoft,
+    color: appColors.muted,
     lineHeight: 22,
   },
   facts: {
-    gap: 10,
+    gap: appSpacing.md2,
   },
   fact: {
-    borderRadius: 18,
+    borderRadius: appRadii.xl,
     backgroundColor: appColors.surfaceAlt,
-    padding: 14,
+    padding: appSpacing.lg2,
   },
   factLabel: {
-    color: appColors.inkSoft,
+    color: appColors.muted,
     fontSize: 12,
-    marginBottom: 6,
+    marginBottom: appSpacing.sm,
     textTransform: "uppercase",
   },
   factValue: {
-    color: appColors.ink,
+    color: appColors.white,
     fontSize: 18,
     fontFamily: fontFamilies.display,
   },
   logoutButton: {
-    marginTop: 8,
-    borderRadius: 18,
+    marginTop: appSpacing.md,
+    borderRadius: appRadii.xl,
   },
   logoutButtonContent: {
     minHeight: 52,

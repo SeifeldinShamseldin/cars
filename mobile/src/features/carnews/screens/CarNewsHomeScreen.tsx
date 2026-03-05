@@ -11,5 +11,5 @@ type CarNewsHomeScreenProps = {
 export const CarNewsHomeScreen = ({ feedParams }: CarNewsHomeScreenProps) => {
   const feedProps = useUpdatesCatalogFeed(feedParams);
 
-  return <CarsCatalogFeed {...feedProps} />;
+  return <CarsCatalogFeed {...feedProps} themeVariant="updates" />;
 };

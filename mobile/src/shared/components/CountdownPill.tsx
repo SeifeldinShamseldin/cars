@@ -2,6 +2,7 @@ import { StyleSheet, View } from "react-native";
 import { Text } from "react-native-paper";
 
 import { appColors } from "../theme/paperTheme";
+import { appRadii, appSpacing, withAlpha } from "../theme/tokens";
 import { fontFamilies } from "../theme/typography";
 import { formatCountdown, useCountdown } from "../hooks/useCountdown";
 
@@ -28,13 +29,13 @@ export const CountdownPill = ({ targetTime, label = "Time left" }: CountdownPill
 const styles = StyleSheet.create({
   container: {
     alignSelf: "flex-start",
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 18,
+    paddingHorizontal: appSpacing.xl,
+    paddingVertical: appSpacing.md2,
+    borderRadius: appRadii.xl,
     backgroundColor: appColors.surfaceAlt,
     minWidth: 110,
     borderWidth: 1,
-    borderColor: "rgba(231, 211, 26, 0.24)",
+    borderColor: withAlpha(appColors.primary, 0.24),
   },
   label: {
     color: appColors.inkSoft,

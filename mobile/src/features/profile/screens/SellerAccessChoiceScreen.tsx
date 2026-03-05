@@ -1,7 +1,9 @@
 import { StyleSheet } from "react-native";
 import { Button, Card, Text } from "react-native-paper";
 
+import { BackArrow } from "../../../shared/components/BackArrow";
 import { appColors } from "../../../shared/theme/paperTheme";
+import { appRadii, appSpacing } from "../../../shared/theme/tokens";
 import { fontFamilies } from "../../../shared/theme/typography";
 
 type SellerAccessChoiceScreenProps = {
@@ -20,13 +22,13 @@ export const SellerAccessChoiceScreen = ({
   subtitle,
   signInLabel,
   signUpLabel,
-  backLabel,
   onSignIn,
   onSignUp,
   onBack,
 }: SellerAccessChoiceScreenProps) => (
   <Card mode="elevated" style={styles.card}>
     <Card.Content style={styles.content}>
+      <BackArrow onPress={onBack} />
       <Text style={styles.title}>{title}</Text>
       <Text variant="bodyLarge" style={styles.subtitle}>
         {subtitle}
@@ -36,6 +38,7 @@ export const SellerAccessChoiceScreen = ({
         onPress={onSignIn}
         style={styles.button}
         contentStyle={styles.buttonContent}
+        labelStyle={styles.buttonLabel}
       >
         {signInLabel}
       </Button>
@@ -44,16 +47,9 @@ export const SellerAccessChoiceScreen = ({
         onPress={onSignUp}
         style={styles.button}
         contentStyle={styles.buttonContent}
+        labelStyle={styles.buttonLabel}
       >
         {signUpLabel}
-      </Button>
-      <Button
-        mode="text"
-        onPress={onBack}
-        style={styles.secondaryButton}
-        labelStyle={styles.secondaryButtonLabel}
-      >
-        {backLabel}
       </Button>
     </Card.Content>
   </Card>
@@ -61,35 +57,32 @@ export const SellerAccessChoiceScreen = ({
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 24,
-    backgroundColor: appColors.surface,
+    borderRadius: appRadii.xxxl,
+    backgroundColor: appColors.mutedCard,
     borderWidth: 1,
-    borderColor: appColors.ice,
+    borderColor: appColors.border,
   },
   content: {
-    gap: 14,
+    gap: appSpacing.lg2,
   },
   title: {
-    color: appColors.ink,
+    color: appColors.white,
     fontSize: 28,
     lineHeight: 34,
     fontFamily: fontFamilies.displayBold,
   },
   subtitle: {
-    color: appColors.inkSoft,
+    color: appColors.muted,
     lineHeight: 22,
   },
   button: {
-    borderRadius: 18,
-    backgroundColor: appColors.primary,
+    borderRadius: appRadii.xl,
+    backgroundColor: appColors.white,
   },
   buttonContent: {
     minHeight: 56,
   },
-  secondaryButton: {
-    borderRadius: 18,
-  },
-  secondaryButtonLabel: {
-    color: appColors.inkSoft,
+  buttonLabel: {
+    color: appColors.inkDark,
   },
 });

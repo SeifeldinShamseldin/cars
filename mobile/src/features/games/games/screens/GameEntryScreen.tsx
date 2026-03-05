@@ -8,6 +8,7 @@ import { Button, Card, Chip, HelperText, Text, TextInput } from "react-native-pa
 
 import { BackArrow } from "../../../../shared/components/BackArrow";
 import { appColors } from "../../../../shared/theme/paperTheme";
+import { appRadii, appSpacing, withAlpha } from "../../../../shared/theme/tokens";
 import { fontFamilies } from "../../../../shared/theme/typography";
 
 type GameEntryScreenProps = {
@@ -121,18 +122,18 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   screen: {
-    gap: 18,
-    paddingTop: 10,
-    paddingBottom: 8,
+    gap: appSpacing.xl2,
+    paddingTop: appSpacing.md2,
+    paddingBottom: appSpacing.md,
   },
   heroCard: {
-    borderRadius: 28,
+    borderRadius: appRadii.mega,
     backgroundColor: appColors.surface,
     borderWidth: 1,
     borderColor: appColors.ice,
   },
   hero: {
-    gap: 10,
+    gap: appSpacing.md2,
     minHeight: 210,
     justifyContent: "flex-end",
   },
@@ -165,22 +166,22 @@ const styles = StyleSheet.create({
   },
   modeChip: {
     alignSelf: "flex-start",
-    backgroundColor: "rgba(231, 211, 26, 0.14)",
+    backgroundColor: withAlpha(appColors.primary, 0.14),
   },
   actionBlock: {
-    borderRadius: 24,
+    borderRadius: appRadii.xxxl,
     backgroundColor: appColors.surface,
     borderWidth: 1,
     borderColor: appColors.ice,
   },
   joinBlock: {
-    borderRadius: 24,
+    borderRadius: appRadii.xxxl,
     backgroundColor: appColors.surfaceAlt,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.06)",
+    borderColor: withAlpha(appColors.white, 0.06),
   },
   blockContent: {
-    gap: 12,
+    gap: appSpacing.lg,
   },
   blockLabel: {
     color: appColors.ink,
@@ -189,8 +190,8 @@ const styles = StyleSheet.create({
     fontFamily: fontFamilies.displayBold,
   },
   input: {
-    backgroundColor: "rgba(255,255,255,0.02)",
-    borderRadius: 18,
+    backgroundColor: withAlpha(appColors.white, 0.02),
+    borderRadius: appRadii.xl,
   },
   helper: {
     color: appColors.inkSoft,
@@ -201,14 +202,14 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   primaryButton: {
-    borderRadius: 18,
+    borderRadius: appRadii.xl,
     backgroundColor: appColors.primary,
   },
   primaryButtonContent: {
     minHeight: 58,
   },
   secondaryButton: {
-    borderRadius: 18,
+    borderRadius: appRadii.xl,
     backgroundColor: appColors.surface,
   },
   secondaryButtonContent: {

@@ -1,3 +1,4 @@
+//car detail home screen the main style 
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
@@ -6,6 +7,7 @@ import {
   NativeSyntheticEvent,
   Pressable,
   ScrollView,
+  StatusBar,
   StyleSheet,
   useWindowDimensions,
   View,
@@ -16,8 +18,12 @@ import { BackArrow } from "../../../shared/components/BackArrow";
 import { ResponsiveImage } from "../../../shared/components/ResponsiveImage";
 import { prefetchRemoteImages } from "../../../shared/lib/imagePipeline";
 import { appColors } from "../../../shared/theme/paperTheme";
+import { appRadii, appShadows, appSpacing, withAlpha } from "../../../shared/theme/tokens";
 import { fontFamilies } from "../../../shared/theme/typography";
 
+const DOT_SIZE = 22;
+
+// ─── Types ───────────────────────────────────────────────────────────────────
 export type CarDetailInfoItem = {
   label: string;
   value: string;
@@ -49,6 +55,7 @@ type CarDetailScreenProps = {
   onBack: () => void;
 };
 
+// ─── Component ───────────────────────────────────────────────────────────────
 export const CarDetailScreen = ({
   isLoading = false,
   hasError = false,
@@ -68,18 +75,59 @@ export const CarDetailScreen = ({
   onBack,
 }: CarDetailScreenProps) => {
   const { width, height } = useWindowDimensions();
+
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [activeModalImageIndex, setActiveModalImageIndex] = useState(0);
   const [isGalleryOpen, setIsGalleryOpen] = useState(false);
+
   const galleryScrollX = useRef(new Animated.Value(0)).current;
   const galleryScrollRef = useRef<ScrollView>(null);
-  const screenHorizontalPadding = 40;
-  const heroCardHorizontalPadding = 36;
-  const slideWidth = Math.max(width - screenHorizontalPadding - heroCardHorizontalPadding, 240);
-  const galleryHeight = Math.min(Math.max(width * 0.74, 280), height * 0.48);
-  const modalImageHeight = height * 0.76;
-  const paginationStep = 30;
-  const loopedGalleryImageUrls = useMemo(
+  const activeImageIndexRef = useRef(0);
+
+  const openGalleryAt = (index: number) => {
+    setActiveModalImageIndex(index);
+    setIsGalleryOpen(true);
+  };
+
+  const closeGallery = () => {
+    setIsGalleryOpen(false);
+  };
+
+  // ── The Master Scroll Value — Gemini's single-scrollview approach ─────────
+  const scrollY = useRef(new Animated.Value(0)).current;
+
+  // ── Layout constants ──────────────────────────────────────────────────────
+  const HEADER_MAX = height * 0.62;
+  const HEADER_MIN = height * 0.28;
+  const SCROLL_DIST = HEADER_MAX - HEADER_MIN;
+
+  // Header shrinks as you scroll up, stretches when pulling down
+  const headerHeight = scrollY.interpolate({
+    inputRange: [-100, 0, SCROLL_DIST],
+    outputRange: [HEADER_MAX + 100, HEADER_MAX, HEADER_MIN],
+    extrapolateLeft: "extend",
+    extrapolateRight: "clamp",
+  });
+
+  // Subtle zoom on pull-down
+  const imageScale = scrollY.interpolate({
+    inputRange: [-150, 0],
+    outputRange: [1.3, 1],
+    extrapolate: "clamp",
+  });
+
+  // All overlay elements (meta, dots, swipe hint) fade as sheet rises
+  const overlayOpacity = scrollY.interpolate({
+    inputRange: [0, SCROLL_DIST * 0.5],
+    outputRange: [1, 0],
+    extrapolate: "clamp",
+  });
+
+  // ── Looped infinite carousel ──────────────────────────────────────────────
+  const slideWidth = width;
+  const PAGINATION_STEP = 30;
+
+  const loopedUrls = useMemo(
     () =>
       galleryImageUrls.length <= 1
         ? galleryImageUrls
@@ -90,24 +138,26 @@ export const CarDetailScreen = ({
           ],
     [galleryImageUrls],
   );
+
   const paginationTranslateX =
     galleryImageUrls.length <= 1
       ? 0
       : galleryScrollX.interpolate({
-          inputRange: loopedGalleryImageUrls.map((_, index) => index * slideWidth),
-          outputRange: loopedGalleryImageUrls.map(
-            (_, index) =>
-              (((index - 1) % galleryImageUrls.length) + galleryImageUrls.length) %
-              galleryImageUrls.length *
-              paginationStep,
+          inputRange: loopedUrls.map((_, i) => i * slideWidth),
+          outputRange: loopedUrls.map(
+            (_, i) =>
+              (((i - 1) % galleryImageUrls.length) + galleryImageUrls.length) %
+              galleryImageUrls.length * PAGINATION_STEP,
           ),
           extrapolate: "clamp",
         });
 
+  // ── Lifecycle ─────────────────────────────────────────────────────────────
   useEffect(() => {
     setActiveImageIndex(0);
+    activeImageIndexRef.current = 0;
     setActiveModalImageIndex(0);
-  }, [galleryImageUrls]);
+  }, [galleryImageUrls, activeImageIndexRef]);
 
   useEffect(() => {
     void prefetchRemoteImages(galleryImageUrls).catch(() => false);
@@ -117,47 +167,48 @@ export const CarDetailScreen = ({
     if (galleryImageUrls.length <= 1) {
       galleryScrollX.setValue(0);
       setActiveImageIndex(0);
+      activeImageIndexRef.current = 0;
       return;
     }
-
     requestAnimationFrame(() => {
       galleryScrollRef.current?.scrollTo({ x: slideWidth, animated: false });
       galleryScrollX.setValue(slideWidth);
       setActiveImageIndex(0);
+      activeImageIndexRef.current = 0;
     });
-  }, [galleryImageUrls.length, galleryScrollX, slideWidth]);
+  }, [galleryImageUrls.length, galleryScrollX, slideWidth, activeImageIndexRef]);
 
-  const handleGalleryEnd = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const rawIndex = Math.round(event.nativeEvent.contentOffset.x / slideWidth);
-
+  const handleGalleryEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const raw = Math.round(e.nativeEvent.contentOffset.x / slideWidth);
     if (galleryImageUrls.length <= 1) {
       setActiveImageIndex(0);
+      activeImageIndexRef.current = 0;
       return;
     }
-
-    if (rawIndex === 0) {
-      const loopOffset = galleryImageUrls.length * slideWidth;
-
+    if (raw === 0) {
+      const off = galleryImageUrls.length * slideWidth;
       requestAnimationFrame(() => {
-        galleryScrollRef.current?.scrollTo({ x: loopOffset, animated: false });
-        galleryScrollX.setValue(loopOffset);
+        galleryScrollRef.current?.scrollTo({ x: off, animated: false });
+        galleryScrollX.setValue(off);
       });
       setActiveImageIndex(galleryImageUrls.length - 1);
+      activeImageIndexRef.current = galleryImageUrls.length - 1;
       return;
     }
-
-    if (rawIndex === loopedGalleryImageUrls.length - 1) {
+    if (raw === loopedUrls.length - 1) {
       requestAnimationFrame(() => {
         galleryScrollRef.current?.scrollTo({ x: slideWidth, animated: false });
         galleryScrollX.setValue(slideWidth);
       });
       setActiveImageIndex(0);
+      activeImageIndexRef.current = 0;
       return;
     }
-
-    setActiveImageIndex(rawIndex - 1);
+    setActiveImageIndex(raw - 1);
+    activeImageIndexRef.current = raw - 1;
   };
 
+  // ── Loading / error ───────────────────────────────────────────────────────
   if (isLoading || !title) {
     return (
       <View style={styles.stateRoot}>
@@ -168,160 +219,229 @@ export const CarDetailScreen = ({
 
   return (
     <>
-      <ScrollView
-        style={styles.scroll}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.root}
-      >
-        <BackArrow label={backLabel} onPress={onBack} />
-        <View style={styles.header}>
-          <View style={styles.headerCopy}>
-            {eyebrow ? <Text style={styles.eyebrow}>{eyebrow}</Text> : null}
-            <Text style={styles.title}>{title}</Text>
-          </View>
-        </View>
+      <View style={styles.container}>
+        <StatusBar barStyle="dark-content" />
 
-        <View style={styles.heroCard}>
-          {eyebrow ? <Text style={styles.brandBackdrop}>{eyebrow}</Text> : null}
-          <View style={styles.heroTopRow}>
-            {priceText ? (
-              <View style={styles.priceBadge}>
-                <Text style={styles.priceBadgeText}>{priceText}</Text>
-              </View>
-            ) : (
-              <View />
-            )}
-            <View style={styles.yearBadge}>
-              <Text style={styles.yearBadgeText}>{year}</Text>
-            </View>
-          </View>
+        {/* ── FLOATING HEADER (photo) — Gemini's absolute approach ─── */}
+        <Animated.View style={[styles.header, { height: headerHeight }]}>
 
-          <Animated.ScrollView
-            ref={galleryScrollRef}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            pagingEnabled
-            snapToInterval={slideWidth}
-            snapToAlignment="start"
-            decelerationRate={0.985}
-            disableIntervalMomentum
-            contentContainerStyle={styles.galleryContent}
-            onScroll={Animated.event(
-              [{ nativeEvent: { contentOffset: { x: galleryScrollX } } }],
-              { useNativeDriver: true },
-            )}
-            scrollEventThrottle={16}
-            onMomentumScrollEnd={handleGalleryEnd}
-          >
-            {loopedGalleryImageUrls.map((imageUrl, index) => {
-              const normalizedIndex =
-                galleryImageUrls.length <= 1
-                  ? index
-                  : index === 0
-                    ? galleryImageUrls.length - 1
-                    : index === loopedGalleryImageUrls.length - 1
-                      ? 0
-                      : index - 1;
-              return (
-                <Pressable
-                  key={`${title}-${imageUrl}-${index}`}
-                  onPress={() => {
-                    setActiveModalImageIndex(normalizedIndex);
-                    setIsGalleryOpen(true);
-                  }}
-                  style={[styles.imageSlide, { width: slideWidth }]}
-                >
-                  <ResponsiveImage source={imageUrl} height={galleryHeight} priority="high" />
-                </Pressable>
-              );
-            })}
-          </Animated.ScrollView>
-
-          <View style={styles.galleryDots}>
-            {galleryImageUrls.length > 1 ? (
-              <View
-                style={[
-                  styles.galleryDotsTrack,
-                  {
-                    width: galleryImageUrls.length * 22 + (galleryImageUrls.length - 1) * 8,
+          {/* Looped carousel with scale on pull-down */}
+          <Animated.View style={[StyleSheet.absoluteFill, { transform: [{ scale: imageScale }] }]}>
+            <Animated.ScrollView
+              ref={galleryScrollRef}
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              snapToInterval={slideWidth}
+              snapToAlignment="start"
+              decelerationRate={0.985}
+              disableIntervalMomentum
+              style={{ flex: 1 }}
+              onScroll={Animated.event(
+                [{ nativeEvent: { contentOffset: { x: galleryScrollX } } }],
+                {
+                  useNativeDriver: true,
+                  listener: (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+                    if (galleryImageUrls.length === 0) {
+                      activeImageIndexRef.current = 0;
+                      return;
+                    }
+                    if (galleryImageUrls.length === 1) {
+                      activeImageIndexRef.current = 0;
+                      return;
+                    }
+                    const raw = Math.round(
+                      event.nativeEvent.contentOffset.x / slideWidth,
+                    );
+                    if (raw <= 0) {
+                      activeImageIndexRef.current = galleryImageUrls.length - 1;
+                      return;
+                    }
+                    if (raw >= loopedUrls.length - 1) {
+                      activeImageIndexRef.current = 0;
+                      return;
+                    }
+                    activeImageIndexRef.current = raw - 1;
                   },
-                ]}
-              >
-                <Animated.View
-                  style={[
-                    styles.galleryDotActive,
-                    { transform: [{ translateX: paginationTranslateX }] },
-                  ]}
-                />
-                {galleryImageUrls.map((_, index) => (
-                  <View key={`${title}-dot-${index}`} style={styles.galleryDot} />
-                ))}
-              </View>
-            ) : (
-              <View style={styles.galleryDotSingle} />
-            )}
-          </View>
-
-          <View style={styles.heroFooter}>
-            <Text style={styles.modelLabel}>{title}</Text>
-            {typeText ? <Text style={styles.typeValue}>{typeText}</Text> : null}
-            {description ? <Text style={styles.description}>{description}</Text> : null}
-          </View>
-        </View>
-
-        <View style={styles.infoGrid}>
-          {infoItems.map((item) => (
-            <View
-              key={`${item.label}-${item.value}`}
-              style={[styles.infoCard, item.fullWidth ? styles.infoCardFullWidth : null]}
+                },
+              )}
+              scrollEventThrottle={16}
+              onMomentumScrollEnd={handleGalleryEnd}
             >
-              <Text style={styles.infoLabel}>{item.label}</Text>
-              <Text style={styles.infoValue}>{item.value}</Text>
+              {loopedUrls.map((url, index) => {
+                const normIdx =
+                  galleryImageUrls.length <= 1
+                    ? index
+                    : index === 0
+                      ? galleryImageUrls.length - 1
+                      : index === loopedUrls.length - 1
+                        ? 0
+                        : index - 1;
+                return (
+                  <Pressable
+                    key={`img-${index}`}
+                    style={{ width: slideWidth, flex: 1 }}
+                    onPress={() => {
+                      openGalleryAt(normIdx);
+                    }}
+                  >
+                    <Animated.Image
+                      source={{ uri: url }}
+                      style={{ width: slideWidth, flex: 1, resizeMode: "cover" }}
+                    />
+                  </Pressable>
+                );
+              })}
+            </Animated.ScrollView>
+          </Animated.View>
+
+          {/* All overlay UI fades as sheet scrolls up */}
+          <Animated.View
+            pointerEvents="none"
+            style={[styles.overlayWrapper, { opacity: overlayOpacity }]}
+          >
+
+            {/* Year watermark */}
+            <Text style={styles.watermark} numberOfLines={1}>{year}</Text>
+
+            {/* Meta row */}
+            <View style={styles.metaRow}>
+              {eyebrow ? (
+                <View>
+                  <Text style={styles.metaLabel}>Model code / number</Text>
+                  <Text style={styles.metaValue}>{eyebrow}</Text>
+                </View>
+              ) : <View />}
+              {typeText ? (
+                <View style={{ alignItems: "flex-end" }}>
+                  <Text style={styles.metaLabel}>Status</Text>
+                  <Text style={styles.metaValue}>{typeText}</Text>
+                </View>
+              ) : <View />}
             </View>
-          ))}
-          {actionButtons.length > 0 ? (
-            <View style={styles.actionButtonsRow}>
-              {actionButtons.map((button) => (
-                <Pressable key={button.id} onPress={button.onPress} style={styles.actionButton}>
-                  <Text style={styles.actionButtonText}>{button.label}</Text>
-                </Pressable>
+
+            {/* Pagination dots */}
+            {galleryImageUrls.length > 1 ? (
+              <View style={styles.dotsRow}>
+                <View
+                  style={[
+                    styles.dotsTrack,
+                    { width: galleryImageUrls.length * 22 + (galleryImageUrls.length - 1) * 8 },
+                  ]}
+                >
+                  <Animated.View
+                    style={[styles.dotActive, { transform: [{ translateX: paginationTranslateX }] }]}
+                  />
+                  {galleryImageUrls.map((_, i) => (
+                    <View key={`dot-${i}`} style={styles.dot} />
+                  ))}
+                </View>
+              </View>
+            ) : null}
+
+            <View style={styles.handleContainer}>
+              <Text style={styles.swipeText}>SWIPE LEFT OR RIGHT</Text>
+            </View>
+          </Animated.View>
+        </Animated.View>
+
+        {/* ── SCROLLABLE CONTENT — drives header collapse ───────────── */}
+        <Animated.ScrollView
+          contentContainerStyle={{ paddingTop: HEADER_MAX }}
+          scrollEventThrottle={16}
+          showsVerticalScrollIndicator={false}
+          onScroll={Animated.event(
+            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+            { useNativeDriver: false },
+          )}
+        >
+          <View style={styles.detailsSheet}>
+            <Text style={styles.sheetTitle}>Details</Text>
+
+            {/* Badges */}
+            <View style={styles.badgeRow}>
+              {priceText ? (
+                <View style={[styles.badge, { backgroundColor: appColors.primary }]}>
+                  <Text style={[styles.badgeText, { color: appColors.inkDark }]}>{priceText}</Text>
+                </View>
+              ) : null}
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>{year}</Text>
+              </View>
+            </View>
+
+            {/* Model name */}
+            <View style={{ gap: 4, marginBottom: 12 }}>
+              {eyebrow ? <Text style={styles.modelEyebrow}>{eyebrow}</Text> : null}
+              <Text style={styles.modelTitle}>{title}</Text>
+            </View>
+
+            {description ? <Text style={styles.description}>{description}</Text> : null}
+
+            <View style={styles.divider} />
+
+            {/* Info grid */}
+            <View style={styles.grid}>
+              {infoItems.map((item) => (
+                <View
+                  key={`${item.label}-${item.value}`}
+                  style={[styles.gridItem, item.fullWidth ? styles.gridItemFull : null]}
+                >
+                  <Text style={styles.gridLabel}>{item.label}</Text>
+                  <Text style={styles.gridValue}>{item.value}</Text>
+                </View>
               ))}
             </View>
-          ) : null}
-        </View>
-      </ScrollView>
 
+            {/* Action buttons */}
+            {actionButtons.map((btn) => (
+              <Pressable key={btn.id} style={styles.mainBtn} onPress={btn.onPress}>
+                <Text style={styles.btnText}>{btn.label}</Text>
+              </Pressable>
+            ))}
+          </View>
+        </Animated.ScrollView>
+
+        {/* ── NAV — always on top, z:100, never covered ─────────────── */}
+        <View style={styles.topNav}>
+          <BackArrow onPress={onBack} />
+          <Pressable style={styles.roundBtn} hitSlop={12}>
+            <Text style={styles.roundBtnText}>{"⊡"}</Text>
+          </Pressable>
+        </View>
+      </View>
+
+      {/* ── FULLSCREEN GALLERY MODAL ──────────────────────────────────── */}
       <Modal
         visible={isGalleryOpen}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setIsGalleryOpen(false)}
+        transparent={false}
+        animationType="none"
+        onRequestClose={closeGallery}
       >
         <View style={styles.modalRoot}>
-          <Pressable style={styles.modalClose} onPress={() => setIsGalleryOpen(false)}>
-            <Text style={styles.modalCloseText}>{closeLabel}</Text>
+          <Pressable style={styles.modalCloseBtn} onPress={closeGallery}>
+            <Text style={styles.modalCloseTxt}>{closeLabel}</Text>
           </Pressable>
           <ScrollView
             horizontal
-            showsHorizontalScrollIndicator={false}
             pagingEnabled
-            snapToAlignment="center"
+            showsHorizontalScrollIndicator={false}
             contentOffset={{ x: activeModalImageIndex * width, y: 0 }}
-            onMomentumScrollEnd={(event) => {
-              const nextIndex = Math.round(event.nativeEvent.contentOffset.x / width);
+            onMomentumScrollEnd={(e) => {
+              const next = Math.round(e.nativeEvent.contentOffset.x / width);
               setActiveModalImageIndex(
-                Math.max(0, Math.min(galleryImageUrls.length - 1, nextIndex)),
+                Math.max(0, Math.min(galleryImageUrls.length - 1, next)),
               );
             }}
           >
-            {galleryImageUrls.map((imageUrl, index) => (
-              <View key={`${title}-modal-${index}`} style={[styles.modalSlide, { width }]}>
+            {galleryImageUrls.map((url, i) => (
+              <View key={`modal-${i}`} style={[styles.modalSlide, { width }]}>
                 <ResponsiveImage
-                  source={imageUrl}
-                  height={modalImageHeight}
+                  source={url}
+                  height={height * 0.78}
                   priority="high"
                   contentFit="contain"
-                  containerStyle={styles.modalImage}
+                  containerStyle={{ width: "100%" }}
                 />
               </View>
             ))}
@@ -332,245 +452,225 @@ export const CarDetailScreen = ({
   );
 };
 
+// ─── Styles ──────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  scroll: {
-    flex: 1,
-  },
-  root: {
-    paddingBottom: 48,
-    gap: 18,
-  },
-  stateRoot: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  stateText: {
-    color: appColors.inkSoft,
-    fontFamily: fontFamilies.displayBold,
-    fontSize: 16,
-    lineHeight: 20,
-  },
+  container: { flex: 1, backgroundColor: appColors.background },
+  stateRoot: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: appColors.sand },
+  stateText: { color: appColors.inkDark, fontFamily: fontFamilies.displayBold, fontSize: 16 },
+
+  // ── Header ─────────────────────────────────────────────────────────────
   header: {
-    marginTop: 6,
-  },
-  headerCopy: {
-    gap: 4,
-  },
-  eyebrow: {
-    color: appColors.primary,
-    fontFamily: fontFamilies.displayBold,
-    fontSize: 16,
-    lineHeight: 18,
-    textTransform: "uppercase",
-  },
-  title: {
-    color: appColors.ink,
-    fontFamily: fontFamilies.displayBold,
-    fontSize: 42,
-    lineHeight: 44,
-    textTransform: "uppercase",
-  },
-  heroCard: {
-    borderRadius: 28,
-    backgroundColor: appColors.surfaceAlt,
-    borderWidth: 1,
-    borderColor: appColors.ice,
-    overflow: "hidden",
-    paddingHorizontal: 18,
-    paddingTop: 18,
-    paddingBottom: 18,
-  },
-  brandBackdrop: {
     position: "absolute",
-    left: 18,
-    top: 32,
-    color: appColors.ink,
-    opacity: 0.14,
-    fontFamily: fontFamilies.displayBold,
-    fontSize: 58,
-    lineHeight: 58,
-    textTransform: "uppercase",
-  },
-  heroTopRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 12,
-  },
-  priceBadge: {
-    borderRadius: 999,
-    backgroundColor: appColors.primary,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-  },
-  priceBadgeText: {
-    color: appColors.background,
-    fontFamily: fontFamilies.displayBold,
-    fontSize: 14,
-    lineHeight: 16,
-  },
-  yearBadge: {
-    borderRadius: 999,
-    backgroundColor: appColors.primary,
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-  },
-  yearBadgeText: {
-    color: appColors.background,
-    fontFamily: fontFamilies.displayBold,
-    fontSize: 14,
-    lineHeight: 16,
-  },
-  galleryContent: {
-    alignItems: "center",
-  },
-  imageSlide: {
-    alignItems: "center",
-    justifyContent: "center",
+    top: 0, left: 0, right: 0,
+    backgroundColor: appColors.sand,
+    zIndex: 10,
     overflow: "hidden",
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
+    shadowColor: appColors.black,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 20,
+    elevation: 12,
   },
-  galleryDots: {
-    marginTop: 10,
-    marginBottom: 12,
-    justifyContent: "center",
-    alignItems: "center",
+  overlayWrapper: {
+    ...StyleSheet.absoluteFillObject,
+    paddingHorizontal: appSpacing.xxl,
+    paddingTop: 110,
   },
-  galleryDotsTrack: {
-    height: 22,
+  watermark: {
+    position: "absolute",
+    top: 60,
+    left: -8,
+    right: -8,
+    color: appColors.white,
+    opacity: 0.07,
+    fontFamily: fontFamilies.displayBold,
+    fontSize: 130,
+    lineHeight: 130,
+    textTransform: "uppercase",
+    letterSpacing: -5,
+  },
+  metaRow: {
     flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
+    justifyContent: "space-between",
+    marginTop: 16,
   },
-  galleryDot: {
-    width: 22,
-    height: 8,
-    borderRadius: 999,
-    backgroundColor: appColors.inkSoft,
+  metaLabel: {
+    fontSize: 10,
+    color: appColors.inkDark,
+    opacity: 0.5,
+    fontFamily: fontFamilies.body,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  metaValue: {
+    fontSize: 18,
+    color: appColors.inkDark,
+    fontFamily: fontFamilies.displayBold,
+  },
+
+  // ── Pagination dots ────────────────────────────────────────────────────
+  dotsRow: {
+    position: "absolute",
+    bottom: 38,
+    left: 0,
+    right: 0,
+    alignItems: "center",
+  },
+  dotsTrack: { height: 18, flexDirection: "row", alignItems: "center", gap: appSpacing.md },
+  dot: { width: DOT_SIZE, height: 6, borderRadius: appRadii.pill, backgroundColor: appColors.inkDark, opacity: 0.25 },
+  dotActive: {
+    position: "absolute", left: 0,
+    width: DOT_SIZE, height: 6, borderRadius: appRadii.pill,
+    backgroundColor: appColors.primary,
+  },
+
+  handleContainer: {
+    position: "absolute",
+    bottom: 12,
+    left: 0,
+    right: 0,
+    alignItems: "center",
+  },
+  swipeText: {
+    fontSize: 9,
+    fontFamily: fontFamilies.displayBold,
+    letterSpacing: 1.5,
+    color: appColors.inkDark,
     opacity: 0.35,
   },
-  galleryDotActive: {
+
+  // ── Top nav (always visible) ───────────────────────────────────────────
+  topNav: {
     position: "absolute",
-    left: 0,
-    width: 22,
-    height: 8,
-    borderRadius: 999,
-    backgroundColor: appColors.primary,
-    opacity: 1,
+    top: 50, left: appSpacing.xxl, right: appSpacing.xxl,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    zIndex: 100,
   },
-  galleryDotSingle: {
-    width: 22,
-    height: 8,
-    borderRadius: 999,
-    backgroundColor: appColors.primary,
+  roundBtn: {
+    width: 45, height: 45, borderRadius: appRadii.xxl2,
+    backgroundColor: appColors.surfaceBright,
+    alignItems: "center", justifyContent: "center",
+    ...appShadows.sm,
   },
-  heroFooter: {
-    gap: 6,
-  },
-  modelLabel: {
-    color: appColors.ink,
-    fontFamily: fontFamilies.displayBold,
+  roundBtnText: {
     fontSize: 22,
-    lineHeight: 26,
-    textTransform: "uppercase",
-  },
-  typeValue: {
-    color: appColors.inkSoft,
+    color: appColors.inkDark,
     fontFamily: fontFamilies.displayBold,
-    fontSize: 14,
-    lineHeight: 16,
+  },
+
+  // ── Details sheet ──────────────────────────────────────────────────────
+  detailsSheet: {
+    padding: appSpacing.xxxl,
+    backgroundColor: appColors.background,
+    minHeight: 700,
+  },
+  sheetTitle: {
+    color: appColors.muted,
+    textAlign: "center",
+    marginBottom: 20,
+    fontSize: 13,
+    fontFamily: fontFamilies.body,
+    letterSpacing: 1,
+    opacity: 0.6,
+  },
+  badgeRow: { flexDirection: "row", gap: 10, marginBottom: 16 },
+  badge: {
+    paddingHorizontal: appSpacing.xl, paddingVertical: appSpacing.md,
+    borderRadius: appRadii.pill,
+    backgroundColor: withAlpha(appColors.white, 0.1),
+  },
+  badgeText: {
+    color: appColors.white,
+    fontSize: 13,
+    fontFamily: fontFamilies.displayBold,
+  },
+  modelEyebrow: {
+    color: appColors.primary,
+    fontFamily: fontFamilies.displayBold,
+    fontSize: 11,
     textTransform: "uppercase",
+    letterSpacing: 2,
+  },
+  modelTitle: {
+    color: appColors.white,
+    fontSize: 30,
+    fontFamily: fontFamilies.displayBold,
+    textTransform: "uppercase",
+    letterSpacing: -0.5,
+    lineHeight: 34,
   },
   description: {
-    color: appColors.inkSoft,
+    color: appColors.muted,
     fontFamily: fontFamilies.body,
     fontSize: 15,
-    lineHeight: 24,
+    lineHeight: 22,
+    marginBottom: 20,
   },
-  infoGrid: {
+  divider: {
+    height: 1,
+    backgroundColor: withAlpha(appColors.white, 0.07),
+    marginBottom: 20,
+  },
+  grid: {
     flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "space-between",
-    rowGap: 12,
+    gap: 10,
+    marginBottom: 10,
   },
-  actionButtonsRow: {
-    width: "100%",
-    flexDirection: "row",
-    gap: 12,
+  gridItem: {
+    width: "47%",
+    backgroundColor: appColors.surfaceAlt,
+    padding: appSpacing.xl,
+    borderRadius: appRadii.xxl,
+    borderWidth: 1,
+    borderColor: withAlpha(appColors.white, 0.05),
+    gap: appSpacing.xs,
   },
-  actionButton: {
-    flex: 1,
-    minHeight: 56,
-    borderRadius: 18,
-    backgroundColor: appColors.primary,
+  gridItemFull: { width: "100%" },
+  gridLabel: {
+    color: appColors.muted,
+    fontSize: 10,
+    fontFamily: fontFamilies.displayBold,
+    textTransform: "uppercase",
+    letterSpacing: 1.5,
+  },
+  gridValue: {
+    color: appColors.white,
+    fontSize: 17,
+    fontFamily: fontFamilies.displayBold,
+    lineHeight: 21,
+  },
+  mainBtn: {
+    backgroundColor: appColors.white,
+    height: 56,
+    borderRadius: appRadii.lg,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 16,
+    marginTop: 12,
   },
-  actionButtonText: {
-    color: appColors.primaryDeep,
+  btnText: {
+    color: appColors.inkDark,
     fontFamily: fontFamilies.displayBold,
     fontSize: 14,
-    lineHeight: 16,
     textTransform: "uppercase",
+    letterSpacing: 1,
   },
-  infoCard: {
-    width: "47%",
-    minHeight: 112,
-    borderRadius: 22,
-    backgroundColor: appColors.surfaceAlt,
-    borderWidth: 1,
-    borderColor: appColors.ice,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    gap: 4,
-    justifyContent: "center",
-  },
-  infoCardFullWidth: {
-    width: "100%",
-    minHeight: 88,
-  },
-  infoLabel: {
-    color: appColors.inkSoft,
-    fontFamily: fontFamilies.displayBold,
-    fontSize: 11,
-    lineHeight: 13,
-    textTransform: "uppercase",
-  },
-  infoValue: {
-    color: appColors.ink,
-    fontFamily: fontFamilies.displayBold,
-    fontSize: 18,
-    lineHeight: 22,
-  },
+
+  // ── Modal ──────────────────────────────────────────────────────────────
   modalRoot: {
     flex: 1,
-    backgroundColor: "rgba(2, 4, 7, 0.96)",
+    backgroundColor: appColors.black,
     justifyContent: "center",
   },
-  modalClose: {
-    position: "absolute",
-    top: 56,
-    right: 24,
-    zIndex: 2,
-    borderRadius: 999,
-    backgroundColor: appColors.surfaceAlt,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+  modalCloseBtn: {
+    position: "absolute", top: 56, right: 24, zIndex: 3,
+    borderRadius: appRadii.pill, backgroundColor: withAlpha(appColors.white, 0.1),
+    paddingHorizontal: appSpacing.lg2, paddingVertical: appSpacing.md2,
   },
-  modalCloseText: {
-    color: appColors.ink,
-    fontFamily: fontFamilies.displayBold,
-    fontSize: 14,
-    lineHeight: 16,
-  },
-  modalSlide: {
-    width: "100%",
-    height: "100%",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  modalImage: {
-    width: "100%",
-  },
+  modalCloseTxt: { color: appColors.white, fontFamily: fontFamilies.displayBold, fontSize: 14 },
+  modalSlide: { height: "100%", alignItems: "center", justifyContent: "center" },
 });

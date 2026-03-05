@@ -49,7 +49,7 @@ import {
   useRoomStore,
   useSellerAccessState,
 } from "./src/shared/store/selectors";
-import { paperTheme } from "./src/shared/theme/paperTheme";
+import { appColors, paperTheme } from "./src/shared/theme/paperTheme";
 
 const t = (
   key: Parameters<typeof translate>[1],
@@ -745,6 +745,8 @@ export default function App() {
       onBack: dismissCarDetailAfterSwipe,
       scrollEnabled: false,
       swipeEnabled: true,
+      padded: false,
+      safeAreaEdges: ["left", "right", "bottom"],
       content: carDetail,
     },
   ]);
@@ -860,9 +862,11 @@ export default function App() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
+    backgroundColor: appColors.background,
   },
   appLayer: {
     flex: 1,
+    backgroundColor: appColors.background,
   },
   launchLayer: {
     ...StyleSheet.absoluteFillObject,

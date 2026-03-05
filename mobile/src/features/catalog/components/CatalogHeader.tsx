@@ -2,6 +2,7 @@ import { Pressable, StyleSheet, TextInput, View } from "react-native";
 import { Icon, Text } from "react-native-paper";
 
 import { appColors } from "../../../shared/theme/paperTheme";
+import { appRadii, appSpacing } from "../../../shared/theme/tokens";
 import { fontFamilies } from "../../../shared/theme/typography";
 
 type CatalogHeaderProps = {
@@ -23,34 +24,32 @@ export const CatalogHeader = ({
   editable = true,
   onPress,
 }: CatalogHeaderProps) => (
-  <View style={[styles.root, !title ? styles.rootCompact : null]}>
+  <View style={[styles.root, !title && styles.rootCompact]}>
     {title ? <Text style={styles.title}>{title}</Text> : null}
+
     {editable ? (
       <View style={styles.searchShell}>
-        <Icon source="magnify" size={22} color={appColors.inkSoft} />
+        <Icon source="magnify" size={20} color={appColors.muted} />
         <TextInput
           value={value}
           onChangeText={onChangeText}
           placeholder={searchPlaceholder}
-          placeholderTextColor={appColors.inkSoft}
+          placeholderTextColor={appColors.muted}
           style={styles.input}
           selectionColor={appColors.primary}
         />
         {value.length > 0 ? (
           <Pressable style={styles.clearButton} onPress={onClear}>
-            <Icon source="close" size={20} color={appColors.inkSoft} />
+            <Icon source="close" size={18} color={appColors.muted} />
           </Pressable>
         ) : null}
       </View>
     ) : (
       <View style={styles.searchShell}>
         <Pressable style={styles.triggerPressable} onPress={onPress}>
-          <Icon source="magnify" size={22} color={appColors.inkSoft} />
+          <Icon source="magnify" size={20} color={appColors.muted} />
           <Text
-            style={[
-              styles.triggerText,
-              value.length === 0 ? styles.triggerPlaceholder : null,
-            ]}
+            style={[styles.triggerText, value.length === 0 && styles.triggerPlaceholder]}
             numberOfLines={1}
           >
             {value.length > 0 ? value : searchPlaceholder}
@@ -58,7 +57,7 @@ export const CatalogHeader = ({
         </Pressable>
         {value.length > 0 ? (
           <Pressable style={styles.clearButton} onPress={onClear}>
-            <Icon source="close" size={20} color={appColors.inkSoft} />
+            <Icon source="close" size={18} color={appColors.muted} />
           </Pressable>
         ) : null}
       </View>
@@ -75,50 +74,51 @@ const styles = StyleSheet.create({
     gap: 0,
   },
   title: {
-    color: appColors.ink,
+    color: appColors.white,
     fontFamily: fontFamilies.displayBold,
     fontSize: 30,
     lineHeight: 32,
     textTransform: "uppercase",
+    letterSpacing: -0.5,
   },
   searchShell: {
-    minHeight: 58,
-    borderRadius: 18,
+    minHeight: 56,
+    borderRadius: appRadii.xl,
     borderWidth: 1,
-    borderColor: appColors.ice,
-    backgroundColor: "rgba(20, 24, 29, 0.72)",
+    borderColor: appColors.borderStrong,
+    backgroundColor: appColors.inputBg,
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-    paddingHorizontal: 16,
+    gap: appSpacing.md2,
+    paddingHorizontal: appSpacing.xl,
   },
   input: {
     flex: 1,
-    color: appColors.ink,
+    color: appColors.white,
     fontFamily: fontFamilies.body,
-    fontSize: 17,
-    lineHeight: 22,
+    fontSize: 16,
+    lineHeight: 20,
     paddingVertical: 0,
   },
   triggerPressable: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: appSpacing.md2,
   },
   triggerText: {
     flex: 1,
-    color: appColors.ink,
+    color: appColors.white,
     fontFamily: fontFamilies.body,
-    fontSize: 17,
-    lineHeight: 22,
+    fontSize: 16,
+    lineHeight: 20,
   },
   triggerPlaceholder: {
-    color: appColors.inkSoft,
+    color: appColors.muted,
   },
   clearButton: {
-    width: 28,
-    height: 28,
+    width: appSpacing.xxxl2,
+    height: appSpacing.xxxl2,
     alignItems: "center",
     justifyContent: "center",
   },

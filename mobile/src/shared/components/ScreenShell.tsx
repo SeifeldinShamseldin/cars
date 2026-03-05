@@ -3,6 +3,7 @@ import { ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView, type Edge } from "react-native-safe-area-context";
 
 import { appColors } from "../theme/paperTheme";
+import { appSpacing } from "../theme/tokens";
 
 type ScreenShellProps = PropsWithChildren<{
   scrollEnabled?: boolean;
@@ -56,9 +57,9 @@ const styles = StyleSheet.create({
   },
   content: {
     flexGrow: 1,
-    paddingHorizontal: 20,
-    paddingVertical: 20,
-    gap: 20,
+    paddingHorizontal: appSpacing.xxl,
+    paddingVertical: appSpacing.xxl,
+    gap: appSpacing.xxl,
   },
   contentUnpadded: {
     paddingHorizontal: 0,
@@ -75,7 +76,7 @@ const styles = StyleSheet.create({
     width: 280,
     height: 280,
     borderRadius: 140,
-    backgroundColor: "rgba(231, 211, 26, 0.08)",
+    backgroundColor: "transparent",
   },
   blobMiddle: {
     position: "absolute",
@@ -84,7 +85,7 @@ const styles = StyleSheet.create({
     width: 220,
     height: 220,
     borderRadius: 110,
-    backgroundColor: "rgba(255, 255, 255, 0.04)",
+    backgroundColor: "transparent",
   },
   blobBottom: {
     position: "absolute",
@@ -93,6 +94,6 @@ const styles = StyleSheet.create({
     width: 230,
     height: 230,
     borderRadius: 115,
-    backgroundColor: "rgba(231, 211, 26, 0.05)",
+    backgroundColor: "transparent",
   },
 });

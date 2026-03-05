@@ -4,6 +4,7 @@ import { Button, Card, Chip, Text } from "react-native-paper";
 import type { RoomStatePublic } from "../../../../shared/types/domain";
 import { BackArrow } from "../../../shared/components/BackArrow";
 import { appColors } from "../../../shared/theme/paperTheme";
+import { appRadii, appSpacing, withAlpha } from "../../../shared/theme/tokens";
 import { fontFamilies } from "../../../shared/theme/typography";
 
 type LobbyScreenProps = {
@@ -100,17 +101,17 @@ export const LobbyScreen = ({
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 24,
+    borderRadius: appRadii.xxxl,
     backgroundColor: appColors.surface,
     borderWidth: 1,
     borderColor: appColors.ice,
   },
   heroSection: {
-    gap: 10,
-    paddingTop: 12,
+    gap: appSpacing.md2,
+    paddingTop: appSpacing.lg,
   },
   section: {
-    gap: 14,
+    gap: appSpacing.lg2,
   },
   eyebrow: {
     color: appColors.primary,
@@ -132,7 +133,7 @@ const styles = StyleSheet.create({
   },
   modeChip: {
     alignSelf: "flex-start",
-    backgroundColor: "rgba(231, 211, 26, 0.14)",
+    backgroundColor: withAlpha(appColors.primary, 0.14),
   },
   sectionTitle: {
     color: appColors.ink,
@@ -164,7 +165,7 @@ const styles = StyleSheet.create({
     minHeight: 54,
   },
   primaryButton: {
-    borderRadius: 18,
+    borderRadius: appRadii.xl,
     backgroundColor: appColors.primary,
   },
   waitingText: {

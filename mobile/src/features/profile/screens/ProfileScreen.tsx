@@ -2,6 +2,7 @@ import { ScrollView, StyleSheet, View } from "react-native";
 import { Button, Card, HelperText, Text, TextInput } from "react-native-paper";
 
 import { appColors } from "../../../shared/theme/paperTheme";
+import { appRadii, appSpacing } from "../../../shared/theme/tokens";
 import { fontFamilies } from "../../../shared/theme/typography";
 
 type ProfileScreenProps = {
@@ -26,6 +27,12 @@ type ProfileScreenProps = {
   onBecomeSeller: () => void;
   onPostCar?: () => void;
   onHistory?: () => void;
+};
+
+const inputProps = {
+  textColor: appColors.white,
+  placeholderTextColor: appColors.muted,
+  selectionColor: appColors.primary,
 };
 
 export const ProfileScreen = ({
@@ -73,6 +80,7 @@ export const ProfileScreen = ({
         <Card.Content style={styles.content}>
           <Text style={styles.sectionTitle}>{updateNameLabel}</Text>
           <TextInput
+            {...inputProps}
             mode="flat"
             label={playerNameLabel}
             value={draftName}
@@ -91,6 +99,7 @@ export const ProfileScreen = ({
             disabled={!draftName.trim() || isSaving}
             style={styles.button}
             contentStyle={styles.buttonContent}
+            labelStyle={styles.buttonLabel}
           >
             {saveNameLabel}
           </Button>
@@ -111,6 +120,7 @@ export const ProfileScreen = ({
             disabled={isBecomeSellerDisabled}
             style={styles.button}
             contentStyle={styles.buttonContent}
+            labelStyle={styles.buttonLabel}
           >
             {becomeSellerLabel}
           </Button>
@@ -122,6 +132,7 @@ export const ProfileScreen = ({
                 disabled={isPostCarDisabled}
                 style={styles.button}
                 contentStyle={styles.buttonContent}
+                labelStyle={styles.buttonLabel}
               >
                 {postCarLabel}
               </Button>
@@ -133,6 +144,7 @@ export const ProfileScreen = ({
                 disabled={isHistoryDisabled}
                 style={styles.button}
                 contentStyle={styles.buttonContent}
+                labelStyle={styles.buttonLabel}
               >
                 {historyLabel}
               </Button>
@@ -152,18 +164,18 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    gap: 20,
+    gap: appSpacing.xxl,
     paddingBottom: 140,
   },
   heroCard: {
-    borderRadius: 28,
-    backgroundColor: appColors.surface,
+    borderRadius: appRadii.mega,
+    backgroundColor: appColors.mutedCard,
     borderWidth: 1,
-    borderColor: appColors.ice,
+    borderColor: appColors.border,
   },
   heroContent: {
-    gap: 10,
-    paddingVertical: 12,
+    gap: appSpacing.md2,
+    paddingVertical: appSpacing.lg,
     minHeight: 180,
     justifyContent: "flex-end",
   },
@@ -174,7 +186,7 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
   },
   title: {
-    color: appColors.ink,
+    color: appColors.white,
     fontSize: 34,
     lineHeight: 40,
     fontFamily: fontFamilies.displayBold,
@@ -183,20 +195,20 @@ const styles = StyleSheet.create({
     paddingBottom: 4,
   },
   subtitle: {
-    color: appColors.inkSoft,
+    color: appColors.muted,
     lineHeight: 22,
   },
   card: {
-    borderRadius: 24,
-    backgroundColor: appColors.surface,
+    borderRadius: appRadii.xxxl,
+    backgroundColor: appColors.mutedCard,
     borderWidth: 1,
-    borderColor: appColors.ice,
+    borderColor: appColors.border,
   },
   content: {
-    gap: 14,
+    gap: appSpacing.lg2,
   },
   sectionTitle: {
-    color: appColors.ink,
+    color: appColors.white,
     fontSize: 24,
     lineHeight: 30,
     fontFamily: fontFamilies.displayBold,
@@ -205,21 +217,26 @@ const styles = StyleSheet.create({
     paddingBottom: 2,
   },
   input: {
-    backgroundColor: appColors.surfaceAlt,
-    borderRadius: 18,
+    backgroundColor: appColors.inputBg,
+    borderWidth: 1,
+    borderColor: appColors.inputBorder,
+    borderRadius: appRadii.xl,
   },
   helper: {
-    color: appColors.inkSoft,
+    color: appColors.muted,
     marginLeft: 0,
   },
   sellerActions: {
-    gap: 14,
+    gap: appSpacing.lg2,
   },
   button: {
-    borderRadius: 18,
-    backgroundColor: appColors.primary,
+    borderRadius: appRadii.xl,
+    backgroundColor: appColors.white,
   },
   buttonContent: {
     minHeight: 56,
+  },
+  buttonLabel: {
+    color: appColors.inkDark,
   },
 });

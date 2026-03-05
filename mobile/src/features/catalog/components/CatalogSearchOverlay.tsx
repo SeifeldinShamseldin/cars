@@ -10,9 +10,11 @@ import {
   rankLookupSuggestions,
 } from "../../../shared/lib/lookupSearch";
 import { appColors } from "../../../shared/theme/paperTheme";
+import { appRadii, appSpacing } from "../../../shared/theme/tokens";
 import { fontFamilies } from "../../../shared/theme/typography";
 import { CatalogHeader } from "./CatalogHeader";
 
+// ─── Types (unchanged) ────────────────────────────────────────────────────────
 type CatalogSearchOverlayProps = {
   visible: boolean;
   title: string;
@@ -103,21 +105,14 @@ type YearScrollerProps = {
   formatter?: (value: number) => string;
 };
 
+// ─── Sub-components ───────────────────────────────────────────────────────────
+
 const FilterChip = ({ label, active, onPress, showCloseIcon = false }: FilterChipProps) => (
-  <Pressable
-    onPress={onPress}
-    style={[styles.chip, active ? styles.chipActive : null]}
-  >
+  <Pressable onPress={onPress} style={[styles.chip, active && styles.chipActive]}>
     <View style={styles.chipContent}>
-      <Text style={[styles.chipText, active ? styles.chipTextActive : null]}>
-        {label}
-      </Text>
+      <Text style={[styles.chipText, active && styles.chipTextActive]}>{label}</Text>
       {showCloseIcon ? (
-        <Icon
-          source="close"
-          size={14}
-          color={active ? appColors.primaryDeep : appColors.inkSoft}
-        />
+        <Icon source="close" size={13} color={active ? appColors.inkDark : appColors.muted} />
       ) : null}
     </View>
   </Pressable>
@@ -131,21 +126,24 @@ const AccordionSection = ({
   onToggle,
   children,
 }: AccordionSectionProps) => (
-  <View style={styles.sectionCard}>
+  <View style={[styles.sectionCard, expanded && styles.sectionCardExpanded]}>
     <Pressable style={styles.sectionHeader} onPress={onToggle}>
       <View style={styles.sectionHeading}>
-        <View style={styles.sectionIconWrap}>
-          <Icon source={icon} size={20} color={appColors.primary} />
+        {/* Icon pill — yellow tint when expanded */}
+        <View style={[styles.sectionIconWrap, expanded && styles.sectionIconWrapActive]}>
+          <Icon source={icon} size={18} color={expanded ? appColors.inkDark : appColors.primary} />
         </View>
         <View style={styles.sectionTitleWrap}>
-          <Text style={styles.sectionTitle}>{title}</Text>
+          <Text style={[styles.sectionTitle, expanded && styles.sectionTitleActive]}>
+            {title}
+          </Text>
           {subtitle ? <Text style={styles.sectionSubtitle}>{subtitle}</Text> : null}
         </View>
       </View>
       <Icon
         source={expanded ? "chevron-up" : "chevron-down"}
-        size={22}
-        color={appColors.inkSoft}
+        size={20}
+        color={expanded ? appColors.primary : appColors.muted}
       />
     </Pressable>
     {expanded ? <View style={styles.sectionBody}>{children}</View> : null}
@@ -163,36 +161,28 @@ const YearScroller = ({
 }: YearScrollerProps) => (
   <View style={styles.yearBlock}>
     <Text style={styles.yearSubheading}>{label}</Text>
-    <Pressable style={styles.yearSelectButton} onPress={onToggle}>
-      <Text style={styles.yearSelectValue}>
+    <Pressable style={[styles.yearSelectButton, expanded && styles.yearSelectButtonActive]} onPress={onToggle}>
+      <Text style={[styles.yearSelectValue, selectedYear !== undefined && styles.yearSelectValueActive]}>
         {selectedYear !== undefined ? (formatter ? formatter(selectedYear) : selectedYear) : "Any"}
       </Text>
       <Icon
         source={expanded ? "chevron-up" : "chevron-down"}
-        size={20}
-        color={appColors.inkSoft}
+        size={18}
+        color={selectedYear !== undefined ? appColors.primary : appColors.muted}
       />
     </Pressable>
     {expanded ? (
       <View style={styles.yearDropdown}>
         <ScrollView
           nestedScrollEnabled
-          showsVerticalScrollIndicator
+          showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.yearDropdownContent}
         >
           <Pressable
             onPress={() => onSelect(undefined)}
-            style={[
-              styles.yearOption,
-              selectedYear === undefined ? styles.yearOptionActive : null,
-            ]}
+            style={[styles.yearOption, selectedYear === undefined && styles.yearOptionActive]}
           >
-            <Text
-              style={[
-                styles.yearOptionText,
-                selectedYear === undefined ? styles.yearOptionTextActive : null,
-              ]}
-            >
+            <Text style={[styles.yearOptionText, selectedYear === undefined && styles.yearOptionTextActive]}>
               Any
             </Text>
           </Pressable>
@@ -200,17 +190,9 @@ const YearScroller = ({
             <Pressable
               key={`${label}-${year}`}
               onPress={() => onSelect(selectedYear === year ? undefined : year)}
-              style={[
-                styles.yearOption,
-                selectedYear === year ? styles.yearOptionActive : null,
-              ]}
+              style={[styles.yearOption, selectedYear === year && styles.yearOptionActive]}
             >
-              <Text
-                style={[
-                  styles.yearOptionText,
-                  selectedYear === year ? styles.yearOptionTextActive : null,
-                ]}
-              >
+              <Text style={[styles.yearOptionText, selectedYear === year && styles.yearOptionTextActive]}>
                 {formatter ? formatter(year) : year}
               </Text>
             </Pressable>
@@ -221,6 +203,7 @@ const YearScroller = ({
   </View>
 );
 
+// ─── Main component ───────────────────────────────────────────────────────────
 export const CatalogSearchOverlay = ({
   visible,
   title,
@@ -293,29 +276,26 @@ export const CatalogSearchOverlay = ({
   const [expandedMileagePicker, setExpandedMileagePicker] = useState<"from" | "to" | null>(null);
   const [brandSearch, setBrandSearch] = useState("");
   const [modelSearch, setModelSearch] = useState("");
+
   const mileageOptions = useMemo(() => {
     const values: number[] = [];
-
-    for (let mileage = 0; mileage <= 1_000_000; mileage += 10_000) {
-      values.push(mileage);
-    }
-
+    for (let m = 0; m <= 1_000_000; m += 10_000) values.push(m);
     return values;
   }, []);
-  const mileageToOptions = useMemo(() => {
-    if (selectedMileageFrom === undefined) {
-      return mileageOptions;
-    }
 
-    return mileageOptions.filter((value) => value >= selectedMileageFrom + 10_000);
-  }, [mileageOptions, selectedMileageFrom]);
-  const priceToOptions = useMemo(() => {
-    if (selectedPriceFrom === undefined) {
-      return availablePrices;
-    }
+  const mileageToOptions = useMemo(() =>
+    selectedMileageFrom === undefined
+      ? mileageOptions
+      : mileageOptions.filter((v) => v >= selectedMileageFrom + 10_000),
+    [mileageOptions, selectedMileageFrom],
+  );
 
-    return availablePrices.filter((value) => value >= selectedPriceFrom + 100_000);
-  }, [availablePrices, selectedPriceFrom]);
+  const priceToOptions = useMemo(() =>
+    selectedPriceFrom === undefined
+      ? availablePrices
+      : availablePrices.filter((v) => v >= selectedPriceFrom + 100_000),
+    [availablePrices, selectedPriceFrom],
+  );
 
   useEffect(() => {
     if (!visible) {
@@ -328,54 +308,39 @@ export const CatalogSearchOverlay = ({
     }
   }, [visible]);
 
-  useEffect(() => {
-    setModelSearch("");
-  }, [selectedBrand]);
+  useEffect(() => { setModelSearch(""); }, [selectedBrand]);
 
   const filteredBrands = useMemo(() => {
-    if (brandSearch.trim().length === 0) {
-      return availableBrands;
-    }
-
+    if (brandSearch.trim().length === 0) return availableBrands;
     return rankLookupSuggestions(
-      availableBrands.filter((brand) => matchesLookupQuery(brand, brandSearch)),
+      availableBrands.filter((b) => matchesLookupQuery(b, brandSearch)),
       brandSearch,
     );
   }, [availableBrands, brandSearch]);
 
   const filteredModelGroups = useMemo(() => {
-    if (modelSearch.trim().length === 0) {
-      return availableModelGroups;
-    }
-
+    if (modelSearch.trim().length === 0) return availableModelGroups;
     return availableModelGroups
-      .map((group) => ({
-        ...group,
+      .map((g) => ({
+        ...g,
         models: rankLookupSuggestions(
-          group.models.filter((model) => matchesLookupQuery(model, modelSearch)),
+          g.models.filter((m) => matchesLookupQuery(m, modelSearch)),
           modelSearch,
         ),
       }))
-      .filter((group) => group.models.length > 0);
+      .filter((g) => g.models.length > 0);
   }, [availableModelGroups, modelSearch]);
 
   const toggleSection = (
     section: "brand" | "model" | "carType" | "price" | "year" | "mileage" | "transmission" | "fuelType" | "condition",
-  ) => {
-    setExpandedSection((current) => (current === section ? null : section));
-  };
+  ) => setExpandedSection((c) => (c === section ? null : section));
 
   return (
     <View style={styles.root}>
       <View style={styles.overlayScreen}>
-        <View
-          style={[
-            styles.topBar,
-            {
-              paddingTop: Math.max(insets.top, 12),
-            },
-          ]}
-        >
+
+        {/* ── Top bar ─────────────────────────────────────────────────── */}
+        <View style={[styles.topBar, { paddingTop: Math.max(insets.top, 12) }]}>
           <View style={styles.backWrap}>
             <BackArrow onPress={onBack} />
           </View>
@@ -383,6 +348,7 @@ export const CatalogSearchOverlay = ({
           <View style={styles.topSpacer} />
         </View>
 
+        {/* ── Scrollable filter sections ───────────────────────────────── */}
         <ScrollView
           style={styles.scroll}
           contentContainerStyle={styles.content}
@@ -395,113 +361,101 @@ export const CatalogSearchOverlay = ({
             onClear={onClearSearch}
           />
 
-            <AccordionSection
-              icon="car-outline"
-              title={brandLabel}
-              subtitle={selectedBrand}
-              expanded={expandedSection === "brand"}
-              onToggle={() => toggleSection("brand")}
-            >
-              <TextInput
-                mode="outlined"
-                value={brandSearch}
-                onChangeText={setBrandSearch}
-                placeholder={`Search ${brandLabel.toLowerCase()}`}
-                style={styles.brandSearchInput}
-                outlineStyle={styles.brandSearchOutline}
-                contentStyle={styles.brandSearchContent}
-                left={<TextInput.Icon icon="magnify" color={appColors.inkSoft} />}
-                right={
-                  brandSearch.trim().length > 0 ? (
-                    <TextInput.Icon
-                      icon="close"
-                      color={appColors.inkSoft}
-                      onPress={() => setBrandSearch("")}
-                    />
-                  ) : null
-                }
-              />
-              {selectedBrand ? (
-                <Pressable
-                  style={styles.selectedBrandRow}
-                  onPress={() => onSelectBrand(undefined)}
-                >
-                  <View style={styles.selectedBrandTextWrap}>
-                    <Text style={styles.selectedBrandLabel}>Selected brand</Text>
-                    <Text style={styles.selectedBrandValue}>{selectedBrand}</Text>
-                  </View>
-                  <Icon source="close" size={18} color={appColors.primaryDeep} />
-                </Pressable>
-              ) : null}
-              <View style={styles.chipsWrap}>
-                {filteredBrands.map((brand) => (
-                  <FilterChip
-                    key={brand}
-                    label={brand}
-                    active={selectedBrand === brand}
-                    onPress={() => onSelectBrand(selectedBrand === brand ? undefined : brand)}
-                  />
-                ))}
-              </View>
-            </AccordionSection>
-
-            <AccordionSection
-              icon="car-info"
-              title={modelLabel}
-              subtitle={
-                selectedModels.length > 0
-                  ? selectedModels.length === 1
-                    ? selectedModels[0]
-                    : `${selectedModels.length} selected`
-                  : undefined
+          {/* Brand */}
+          <AccordionSection
+            icon="car-outline"
+            title={brandLabel}
+            subtitle={selectedBrand}
+            expanded={expandedSection === "brand"}
+            onToggle={() => toggleSection("brand")}
+          >
+            <TextInput
+              mode="outlined"
+              value={brandSearch}
+              onChangeText={setBrandSearch}
+              placeholder={`Search ${brandLabel.toLowerCase()}`}
+              style={styles.searchInput}
+              outlineStyle={styles.searchOutline}
+              contentStyle={styles.searchContent}
+              placeholderTextColor={appColors.muted}
+              left={<TextInput.Icon icon="magnify" color={appColors.muted} />}
+              right={
+                brandSearch.trim().length > 0 ? (
+                  <TextInput.Icon icon="close" color={appColors.muted} onPress={() => setBrandSearch("")} />
+                ) : null
               }
-              expanded={expandedSection === "model"}
-              onToggle={() => toggleSection("model")}
-            >
-              {selectedBrand ? (
-                <>
-                  <TextInput
-                    mode="outlined"
-                    value={modelSearch}
-                    onChangeText={setModelSearch}
-                    placeholder={`Search ${modelLabel.toLowerCase()}`}
-                    style={styles.brandSearchInput}
-                    outlineStyle={styles.brandSearchOutline}
-                    contentStyle={styles.brandSearchContent}
-                    left={<TextInput.Icon icon="magnify" color={appColors.inkSoft} />}
-                    right={
-                      modelSearch.trim().length > 0 ? (
-                        <TextInput.Icon
-                          icon="close"
-                          color={appColors.inkSoft}
-                          onPress={() => setModelSearch("")}
+            />
+            {selectedBrand ? (
+              <Pressable style={styles.selectedRow} onPress={() => onSelectBrand(undefined)}>
+                <View style={styles.selectedTextWrap}>
+                  <Text style={styles.selectedLabel}>Selected brand</Text>
+                  <Text style={styles.selectedValue}>{selectedBrand}</Text>
+                </View>
+                <Icon source="close" size={16} color={appColors.inkDark} />
+              </Pressable>
+            ) : null}
+            <View style={styles.chipsWrap}>
+              {filteredBrands.map((brand) => (
+                <FilterChip
+                  key={brand}
+                  label={brand}
+                  active={selectedBrand === brand}
+                  onPress={() => onSelectBrand(selectedBrand === brand ? undefined : brand)}
+                />
+              ))}
+            </View>
+          </AccordionSection>
+
+          {/* Model */}
+          <AccordionSection
+            icon="car-info"
+            title={modelLabel}
+            subtitle={
+              selectedModels.length > 0
+                ? selectedModels.length === 1 ? selectedModels[0] : `${selectedModels.length} selected`
+                : undefined
+            }
+            expanded={expandedSection === "model"}
+            onToggle={() => toggleSection("model")}
+          >
+            {selectedBrand ? (
+              <>
+                <TextInput
+                  mode="outlined"
+                  value={modelSearch}
+                  onChangeText={setModelSearch}
+                  placeholder={`Search ${modelLabel.toLowerCase()}`}
+                  style={styles.searchInput}
+                  outlineStyle={styles.searchOutline}
+                  contentStyle={styles.searchContent}
+                  placeholderTextColor={appColors.muted}
+                  left={<TextInput.Icon icon="magnify" color={appColors.muted} />}
+                  right={
+                    modelSearch.trim().length > 0 ? (
+                      <TextInput.Icon icon="close" color={appColors.muted} onPress={() => setModelSearch("")} />
+                    ) : null
+                  }
+                />
+                {selectedModels.length > 0 ? (
+                  <View style={styles.selectedModelsWrap}>
+                    <Text style={styles.selectedLabel}>Selected models</Text>
+                    <View style={styles.chipsWrap}>
+                      {selectedModels.map((model) => (
+                        <FilterChip
+                          key={`sel-${model}`}
+                          label={model}
+                          active
+                          showCloseIcon
+                          onPress={() => onToggleModel(model)}
                         />
-                      ) : null
-                    }
-                  />
-                  {selectedModels.length > 0 ? (
-                    <View style={styles.selectedModelsWrap}>
-                      <Text style={styles.selectedBrandLabel}>Selected models</Text>
-                      <View style={styles.chipsWrap}>
-                        {selectedModels.map((model) => (
-                          <FilterChip
-                            key={`selected-${model}`}
-                            label={model}
-                            active
-                            showCloseIcon
-                            onPress={() => onToggleModel(model)}
-                          />
-                        ))}
-                      </View>
+                      ))}
                     </View>
-                  ) : null}
-                  {filteredModelGroups.length > 0 ? (
+                  </View>
+                ) : null}
+                {filteredModelGroups.length > 0 ? (
                   <View style={styles.modelGroupsWrap}>
-                    {filteredModelGroups.map((group, index) => (
-                      <View
-                        key={`${group.groupLabel ?? "other"}-${index}`}
-                        style={styles.modelGroupBlock}
-                      >
+                    {filteredModelGroups.map((group, i) => (
+                      <View key={`${group.groupLabel ?? "other"}-${i}`} style={styles.modelGroupBlock}>
                         {group.groupLabel ? (
                           <Text style={styles.modelGroupTitle}>{group.groupLabel}</Text>
                         ) : null}
@@ -518,249 +472,188 @@ export const CatalogSearchOverlay = ({
                       </View>
                     ))}
                   </View>
-                  ) : (
-                    <Text style={styles.emptyModelsText}>{noModelsLabel}</Text>
-                  )}
-                </>
-              ) : (
-                <Text style={styles.emptyModelsText}>{chooseBrandFirstLabel}</Text>
-              )}
-            </AccordionSection>
+                ) : (
+                  <Text style={styles.emptyText}>{noModelsLabel}</Text>
+                )}
+              </>
+            ) : (
+              <Text style={styles.emptyText}>{chooseBrandFirstLabel}</Text>
+            )}
+          </AccordionSection>
 
-            <AccordionSection
-              icon="car-multiple"
-              title={carTypeLabel}
-              subtitle={selectedCarType}
-              expanded={expandedSection === "carType"}
-              onToggle={() => toggleSection("carType")}
-            >
-              <View style={styles.chipsWrap}>
-                {availableCarTypes.map((carType) => (
-                  <FilterChip
-                    key={carType}
-                    label={carType}
-                    active={selectedCarType === carType}
-                    onPress={() =>
-                      onSelectCarType(selectedCarType === carType ? undefined : carType)
-                    }
-                  />
-                ))}
-              </View>
-            </AccordionSection>
+          {/* Car type */}
+          <AccordionSection
+            icon="car-multiple"
+            title={carTypeLabel}
+            subtitle={selectedCarType}
+            expanded={expandedSection === "carType"}
+            onToggle={() => toggleSection("carType")}
+          >
+            <View style={styles.chipsWrap}>
+              {availableCarTypes.map((t) => (
+                <FilterChip
+                  key={t} label={t}
+                  active={selectedCarType === t}
+                  onPress={() => onSelectCarType(selectedCarType === t ? undefined : t)}
+                />
+              ))}
+            </View>
+          </AccordionSection>
 
-            <AccordionSection
-              icon="cash-multiple"
-              title={priceLabel}
-              subtitle={
-                selectedPriceFrom !== undefined || selectedPriceTo !== undefined
-                  ? `${selectedPriceFrom?.toLocaleString() ?? "Any"} - ${selectedPriceTo?.toLocaleString() ?? "Any"} EGP`
-                  : undefined
-              }
-              expanded={expandedSection === "price"}
-              onToggle={() => toggleSection("price")}
-            >
-              <YearScroller
-                label={priceFromLabel}
-                selectedYear={selectedPriceFrom}
-                years={availablePrices}
-                expanded={expandedPricePicker === "from"}
-                onToggle={() =>
-                  setExpandedPricePicker((current) => (current === "from" ? null : "from"))
-                }
-                onSelect={(value) => {
-                  onSelectPriceFrom(value);
-                  setExpandedPricePicker(null);
-                }}
-                formatter={(value) => `${value.toLocaleString()} EGP`}
-              />
+          {/* Price */}
+          <AccordionSection
+            icon="cash-multiple"
+            title={priceLabel}
+            subtitle={
+              selectedPriceFrom !== undefined || selectedPriceTo !== undefined
+                ? `${selectedPriceFrom?.toLocaleString() ?? "Any"} – ${selectedPriceTo?.toLocaleString() ?? "Any"} EGP`
+                : undefined
+            }
+            expanded={expandedSection === "price"}
+            onToggle={() => toggleSection("price")}
+          >
+            <YearScroller
+              label={priceFromLabel} selectedYear={selectedPriceFrom}
+              years={availablePrices}
+              expanded={expandedPricePicker === "from"}
+              onToggle={() => setExpandedPricePicker((c) => (c === "from" ? null : "from"))}
+              onSelect={(v) => { onSelectPriceFrom(v); setExpandedPricePicker(null); }}
+              formatter={(v) => `${v.toLocaleString()} EGP`}
+            />
+            <YearScroller
+              label={priceToLabel} selectedYear={selectedPriceTo}
+              years={priceToOptions}
+              expanded={expandedPricePicker === "to"}
+              onToggle={() => setExpandedPricePicker((c) => (c === "to" ? null : "to"))}
+              onSelect={(v) => { onSelectPriceTo(v); setExpandedPricePicker(null); }}
+              formatter={(v) => `${v.toLocaleString()} EGP`}
+            />
+          </AccordionSection>
 
-              <YearScroller
-                label={priceToLabel}
-                selectedYear={selectedPriceTo}
-                years={priceToOptions}
-                expanded={expandedPricePicker === "to"}
-                onToggle={() =>
-                  setExpandedPricePicker((current) => (current === "to" ? null : "to"))
-                }
-                onSelect={(value) => {
-                  onSelectPriceTo(value);
-                  setExpandedPricePicker(null);
-                }}
-                formatter={(value) => `${value.toLocaleString()} EGP`}
-              />
-            </AccordionSection>
+          {/* Year */}
+          <AccordionSection
+            icon="calendar-range"
+            title={yearLabel}
+            subtitle={
+              selectedYearFrom || selectedYearTo
+                ? `${selectedYearFrom ?? "Any"} – ${selectedYearTo ?? "Any"}`
+                : undefined
+            }
+            expanded={expandedSection === "year"}
+            onToggle={() => toggleSection("year")}
+          >
+            <YearScroller
+              label={yearFromLabel} selectedYear={selectedYearFrom}
+              years={availableYears}
+              expanded={expandedYearPicker === "from"}
+              onToggle={() => setExpandedYearPicker((c) => (c === "from" ? null : "from"))}
+              onSelect={(v) => { onSelectYearFrom(v); setExpandedYearPicker(null); }}
+            />
+            <YearScroller
+              label={yearToLabel} selectedYear={selectedYearTo}
+              years={availableYears}
+              expanded={expandedYearPicker === "to"}
+              onToggle={() => setExpandedYearPicker((c) => (c === "to" ? null : "to"))}
+              onSelect={(v) => { onSelectYearTo(v); setExpandedYearPicker(null); }}
+            />
+          </AccordionSection>
 
-            <AccordionSection
-              icon="calendar-range"
-              title={yearLabel}
-              subtitle={
-                selectedYearFrom || selectedYearTo
-                  ? `${selectedYearFrom ?? "Any"} - ${selectedYearTo ?? "Any"}`
-                  : undefined
-              }
-              expanded={expandedSection === "year"}
-              onToggle={() => toggleSection("year")}
-            >
-              <YearScroller
-                label={yearFromLabel}
-                selectedYear={selectedYearFrom}
-                years={availableYears}
-                expanded={expandedYearPicker === "from"}
-                onToggle={() =>
-                  setExpandedYearPicker((current) => (current === "from" ? null : "from"))
-                }
-                onSelect={(value) => {
-                  onSelectYearFrom(value);
-                  setExpandedYearPicker(null);
-                }}
-              />
+          {/* Mileage */}
+          <AccordionSection
+            icon="speedometer"
+            title={mileageLabel}
+            subtitle={
+              selectedMileageFrom !== undefined || selectedMileageTo !== undefined
+                ? `${selectedMileageFrom ?? "Any"} – ${selectedMileageTo ?? "Any"} KM`
+                : undefined
+            }
+            expanded={expandedSection === "mileage"}
+            onToggle={() => toggleSection("mileage")}
+          >
+            <YearScroller
+              label={mileageFromLabel} selectedYear={selectedMileageFrom}
+              years={mileageOptions}
+              expanded={expandedMileagePicker === "from"}
+              onToggle={() => setExpandedMileagePicker((c) => (c === "from" ? null : "from"))}
+              onSelect={(v) => { onSelectMileageFrom(v); setExpandedMileagePicker(null); }}
+              formatter={(v) => `${v.toLocaleString()} KM`}
+            />
+            <YearScroller
+              label={mileageToLabel} selectedYear={selectedMileageTo}
+              years={mileageToOptions}
+              expanded={expandedMileagePicker === "to"}
+              onToggle={() => setExpandedMileagePicker((c) => (c === "to" ? null : "to"))}
+              onSelect={(v) => { onSelectMileageTo(v); setExpandedMileagePicker(null); }}
+              formatter={(v) => `${v.toLocaleString()} KM`}
+            />
+          </AccordionSection>
 
-              <YearScroller
-                label={yearToLabel}
-                selectedYear={selectedYearTo}
-                years={availableYears}
-                expanded={expandedYearPicker === "to"}
-                onToggle={() =>
-                  setExpandedYearPicker((current) => (current === "to" ? null : "to"))
-                }
-                onSelect={(value) => {
-                  onSelectYearTo(value);
-                  setExpandedYearPicker(null);
-                }}
-              />
-            </AccordionSection>
+          {/* Transmission */}
+          <AccordionSection
+            icon="cog-outline"
+            title={transmissionLabel}
+            subtitle={selectedTransmission}
+            expanded={expandedSection === "transmission"}
+            onToggle={() => toggleSection("transmission")}
+          >
+            <View style={styles.chipsWrap}>
+              {availableTransmissions.map((t) => (
+                <FilterChip
+                  key={t} label={t}
+                  active={selectedTransmission === t}
+                  onPress={() => onSelectTransmission(selectedTransmission === t ? undefined : t)}
+                />
+              ))}
+            </View>
+          </AccordionSection>
 
-            <AccordionSection
-              icon="speedometer"
-              title={mileageLabel}
-              subtitle={
-                selectedMileageFrom !== undefined || selectedMileageTo !== undefined
-                  ? `${selectedMileageFrom ?? "Any"} - ${selectedMileageTo ?? "Any"} KM`
-                  : undefined
-              }
-              expanded={expandedSection === "mileage"}
-              onToggle={() => toggleSection("mileage")}
-            >
-              <YearScroller
-                label={mileageFromLabel}
-                selectedYear={selectedMileageFrom}
-                years={mileageOptions}
-                expanded={expandedMileagePicker === "from"}
-                onToggle={() =>
-                  setExpandedMileagePicker((current) => (current === "from" ? null : "from"))
-                }
-                onSelect={(value) => {
-                  onSelectMileageFrom(value);
-                  setExpandedMileagePicker(null);
-                }}
-                formatter={(value) => `${value.toLocaleString()} KM`}
-              />
+          {/* Fuel type */}
+          <AccordionSection
+            icon="gas-station-outline"
+            title={fuelTypeLabel}
+            subtitle={selectedFuelType}
+            expanded={expandedSection === "fuelType"}
+            onToggle={() => toggleSection("fuelType")}
+          >
+            <View style={styles.chipsWrap}>
+              {availableFuelTypes.map((f) => (
+                <FilterChip
+                  key={f} label={f}
+                  active={selectedFuelType === f}
+                  onPress={() => onSelectFuelType(selectedFuelType === f ? undefined : f)}
+                />
+              ))}
+            </View>
+          </AccordionSection>
 
-              <YearScroller
-                label={mileageToLabel}
-                selectedYear={selectedMileageTo}
-                years={mileageToOptions}
-                expanded={expandedMileagePicker === "to"}
-                onToggle={() =>
-                  setExpandedMileagePicker((current) => (current === "to" ? null : "to"))
-                }
-                onSelect={(value) => {
-                  onSelectMileageTo(value);
-                  setExpandedMileagePicker(null);
-                }}
-                formatter={(value) => `${value.toLocaleString()} KM`}
-              />
-            </AccordionSection>
-
-            <AccordionSection
-              icon="cog-outline"
-              title={transmissionLabel}
-              subtitle={selectedTransmission}
-              expanded={expandedSection === "transmission"}
-              onToggle={() => toggleSection("transmission")}
-            >
-              <View style={styles.chipsWrap}>
-                {availableTransmissions.map((transmission) => (
-                  <FilterChip
-                    key={transmission}
-                    label={transmission}
-                    active={selectedTransmission === transmission}
-                    onPress={() =>
-                      onSelectTransmission(
-                        selectedTransmission === transmission ? undefined : transmission,
-                      )
-                    }
-                  />
-                ))}
-              </View>
-            </AccordionSection>
-
-            <AccordionSection
-              icon="gas-station-outline"
-              title={fuelTypeLabel}
-              subtitle={selectedFuelType}
-              expanded={expandedSection === "fuelType"}
-              onToggle={() => toggleSection("fuelType")}
-            >
-              <View style={styles.chipsWrap}>
-                {availableFuelTypes.map((fuelType) => (
-                  <FilterChip
-                    key={fuelType}
-                    label={fuelType}
-                    active={selectedFuelType === fuelType}
-                    onPress={() =>
-                      onSelectFuelType(selectedFuelType === fuelType ? undefined : fuelType)
-                    }
-                  />
-                ))}
-              </View>
-            </AccordionSection>
-
-            <AccordionSection
-              icon="check-decagram-outline"
-              title={conditionLabel}
-              subtitle={selectedCondition}
-              expanded={expandedSection === "condition"}
-              onToggle={() => toggleSection("condition")}
-            >
-              <View style={styles.chipsWrap}>
-                {availableConditions.map((condition) => (
-                  <FilterChip
-                    key={condition}
-                    label={condition}
-                    active={selectedCondition === condition}
-                    onPress={() =>
-                      onSelectCondition(selectedCondition === condition ? undefined : condition)
-                    }
-                  />
-                ))}
-              </View>
-            </AccordionSection>
+          {/* Condition */}
+          <AccordionSection
+            icon="check-decagram-outline"
+            title={conditionLabel}
+            subtitle={selectedCondition}
+            expanded={expandedSection === "condition"}
+            onToggle={() => toggleSection("condition")}
+          >
+            <View style={styles.chipsWrap}>
+              {availableConditions.map((c) => (
+                <FilterChip
+                  key={c} label={c}
+                  active={selectedCondition === c}
+                  onPress={() => onSelectCondition(selectedCondition === c ? undefined : c)}
+                />
+              ))}
+            </View>
+          </AccordionSection>
         </ScrollView>
 
-        <View style={styles.footer}>
-          <Pressable
-            style={[
-              styles.clearButton,
-              {
-                marginBottom: Math.max(insets.bottom, 12),
-              },
-            ]}
-            onPress={onClearAll}
-          >
-            <Icon source="close-circle-outline" size={18} color={appColors.white} />
+        {/* ── Sticky footer ────────────────────────────────────────────── */}
+        <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+          <Pressable style={styles.clearButton} onPress={onClearAll}>
+            <Icon source="close-circle-outline" size={16} color={appColors.muted} />
             <Text style={styles.clearButtonText}>{clearAllLabel}</Text>
           </Pressable>
-          <Pressable
-            style={[
-              styles.primaryButton,
-              {
-                marginBottom: Math.max(insets.bottom, 12),
-              },
-            ]}
-            onPress={onApply}
-          >
-            <Icon source="magnify" size={18} color={appColors.primaryDeep} />
+          <Pressable style={styles.primaryButton} onPress={onApply}>
+            <Icon source="magnify" size={16} color={appColors.inkDark} />
             <Text style={styles.primaryButtonText}>
               {resultCount.toLocaleString()} {offersLabel}
             </Text>
@@ -771,6 +664,7 @@ export const CatalogSearchOverlay = ({
   );
 };
 
+// ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   root: {
     flex: 1,
@@ -779,9 +673,9 @@ const styles = StyleSheet.create({
   overlayScreen: {
     flex: 1,
   },
+
+  // ── Top bar ─────────────────────────────────────────────────────────────
   topBar: {
-    zIndex: 40,
-    elevation: 40,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -789,6 +683,8 @@ const styles = StyleSheet.create({
     paddingBottom: 14,
     minHeight: 56,
     backgroundColor: appColors.background,
+    borderBottomWidth: 1,
+    borderBottomColor: appColors.border,
   },
   backWrap: {
     paddingLeft: 20,
@@ -796,34 +692,44 @@ const styles = StyleSheet.create({
     minHeight: 48,
     justifyContent: "center",
     zIndex: 2,
-    elevation: 2,
   },
   topTitle: {
     flex: 1,
-    color: appColors.ink,
+    color: appColors.white,
     fontFamily: fontFamilies.displayBold,
-    fontSize: 18,
-    lineHeight: 20,
+    fontSize: 16,
+    lineHeight: 18,
     textAlign: "center",
+    textTransform: "uppercase",
+    letterSpacing: 1.5,
   },
   topSpacer: {
     width: 68,
   },
+
+  // ── Scroll body ──────────────────────────────────────────────────────────
   scroll: {
     flex: 1,
   },
   content: {
-    paddingHorizontal: 20,
+    paddingHorizontal: appSpacing.xxl,
+    paddingTop: appSpacing.xl,
     paddingBottom: 120,
-    gap: 14,
+    gap: appSpacing.md2,
   },
+
+  // ── Accordion card ───────────────────────────────────────────────────────
   sectionCard: {
-    borderRadius: 24,
+    borderRadius: appRadii.xxxl,
     backgroundColor: appColors.surfaceAlt,
     borderWidth: 1,
-    borderColor: appColors.ice,
-    padding: 16,
-    gap: 14,
+    borderColor: appColors.border,
+    padding: appSpacing.xl,
+    gap: appSpacing.lg2,
+  },
+  sectionCardExpanded: {
+    borderColor: appColors.borderStrong,
+    backgroundColor: appColors.surfaceAlt,
   },
   sectionHeader: {
     flexDirection: "row",
@@ -838,133 +744,187 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   sectionIconWrap: {
-    width: 34,
-    height: 34,
-    borderRadius: 12,
-    backgroundColor: appColors.surface,
+    width: 36,
+    height: 36,
+    borderRadius: appRadii.md,
+    backgroundColor: appColors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: appColors.border,
     alignItems: "center",
     justifyContent: "center",
+  },
+  sectionIconWrapActive: {
+    backgroundColor: appColors.primary,
+    borderColor: appColors.primary,
   },
   sectionTitleWrap: {
     flex: 1,
     gap: 2,
   },
   sectionTitle: {
-    color: appColors.ink,
+    color: appColors.white,
     fontFamily: fontFamilies.displayBold,
-    fontSize: 20,
-    lineHeight: 22,
+    fontSize: 17,
+    lineHeight: 20,
+  },
+  sectionTitleActive: {
+    color: appColors.white,
   },
   sectionSubtitle: {
-    color: appColors.inkSoft,
+    color: appColors.primary,
     fontFamily: fontFamilies.body,
-    fontSize: 13,
-    lineHeight: 16,
-  },
-  sectionBody: {
-    gap: 14,
-  },
-  chipsWrap: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10,
-  },
-  selectedBrandRow: {
-    minHeight: 52,
-    borderRadius: 16,
-    backgroundColor: appColors.primary,
-    borderWidth: 1,
-    borderColor: appColors.primary,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
-  },
-  selectedBrandTextWrap: {
-    flex: 1,
-    gap: 2,
-  },
-  selectedBrandLabel: {
-    color: appColors.primaryDeep,
-    fontFamily: fontFamilies.body,
-    fontSize: 11,
-    lineHeight: 13,
+    fontSize: 12,
+    lineHeight: 15,
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },
-  selectedBrandValue: {
-    color: appColors.primaryDeep,
+  sectionBody: {
+    gap: 14,
+    paddingTop: 4,
+  },
+
+  // ── Search input inside sections ─────────────────────────────────────────
+  searchInput: {
+    backgroundColor: appColors.inputBg,
+  },
+  searchOutline: {
+    borderRadius: appRadii.lg,
+    borderColor: appColors.borderStrong,
+  },
+  searchContent: {
+    color: appColors.white,
+    fontFamily: fontFamilies.body,
+    fontSize: 15,
+  },
+
+  // ── Selected brand/model row ─────────────────────────────────────────────
+  selectedRow: {
+    minHeight: 52,
+    borderRadius: appRadii.xl,
+    backgroundColor: appColors.primary,
+    paddingHorizontal: appSpacing.xl,
+    paddingVertical: appSpacing.md2,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: appSpacing.lg,
+  },
+  selectedTextWrap: {
+    flex: 1,
+    gap: 2,
+  },
+  selectedLabel: {
+    color: appColors.inkDark,
+    fontFamily: fontFamilies.body,
+    fontSize: 10,
+    lineHeight: 12,
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+    opacity: 0.7,
+  },
+  selectedValue: {
+    color: appColors.inkDark,
     fontFamily: fontFamilies.displayBold,
     fontSize: 15,
     lineHeight: 18,
   },
-  brandSearchInput: {
-    backgroundColor: appColors.surface,
+  selectedModelsWrap: {
+    gap: 10,
   },
-  brandSearchOutline: {
-    borderRadius: 16,
-    borderColor: appColors.ice,
-  },
-  brandSearchContent: {
-    color: appColors.ink,
-    fontFamily: fontFamilies.body,
-    fontSize: 15,
+
+  // ── Filter chips ────────────────────────────────────────────────────────
+  chipsWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: appSpacing.md,
   },
   chip: {
-    borderRadius: 16,
+    borderRadius: appRadii.pill,
     borderWidth: 1,
-    borderColor: appColors.ice,
-    backgroundColor: appColors.surface,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    borderColor: appColors.borderStrong,
+    backgroundColor: appColors.surfaceAlt,
+    paddingHorizontal: appSpacing.lg2,
+    paddingVertical: 9,
+  },
+  chipActive: {
+    backgroundColor: appColors.primary,
+    borderColor: appColors.primary,
   },
   chipContent: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
   },
-  chipActive: {
-    backgroundColor: appColors.primary,
-    borderColor: appColors.primary,
-  },
   chipText: {
-    color: appColors.ink,
+    color: appColors.muted,
     fontFamily: fontFamilies.displayBold,
     fontSize: 13,
     lineHeight: 15,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
   },
   chipTextActive: {
-    color: appColors.primaryDeep,
+    color: appColors.inkDark,
   },
-  yearBlock: {
-    gap: 10,
+
+  // ── Model groups ────────────────────────────────────────────────────────
+  modelGroupsWrap: { gap: 14 },
+  modelGroupBlock: { gap: 10 },
+  modelGroupTitle: {
+    color: appColors.muted,
+    fontFamily: fontFamilies.displayBold,
+    fontSize: 11,
+    lineHeight: 13,
+    textTransform: "uppercase",
+    letterSpacing: 1.5,
+  },
+  emptyText: {
+    color: appColors.muted,
+    fontFamily: fontFamilies.body,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+
+  // ── Year / price / mileage scroller ─────────────────────────────────────
+  yearBlock: { gap: 8 },
+  yearSubheading: {
+    color: appColors.muted,
+    fontFamily: fontFamilies.displayBold,
+    fontSize: 11,
+    lineHeight: 13,
+    textTransform: "uppercase",
+    letterSpacing: 1.5,
   },
   yearSelectButton: {
     minHeight: 48,
-    borderRadius: 16,
+    borderRadius: appRadii.lg,
     borderWidth: 1,
-    borderColor: appColors.ice,
-    backgroundColor: appColors.surface,
-    paddingHorizontal: 14,
+    borderColor: appColors.borderStrong,
+    backgroundColor: appColors.inputBg,
+    paddingHorizontal: appSpacing.xl,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: 12,
+    gap: appSpacing.lg,
+  },
+  yearSelectButtonActive: {
+    borderColor: appColors.primary,
   },
   yearSelectValue: {
-    color: appColors.ink,
+    color: appColors.muted,
     fontFamily: fontFamilies.displayBold,
     fontSize: 14,
     lineHeight: 16,
   },
+  yearSelectValueActive: {
+    color: appColors.white,
+  },
   yearDropdown: {
     maxHeight: 220,
-    borderRadius: 16,
+    borderRadius: appRadii.lg,
     borderWidth: 1,
-    borderColor: appColors.ice,
-    backgroundColor: appColors.surface,
+    borderColor: appColors.borderStrong,
+    backgroundColor: appColors.surfaceDarker,
     overflow: "hidden",
   },
   yearDropdownContent: {
@@ -972,96 +932,73 @@ const styles = StyleSheet.create({
   },
   yearOption: {
     minHeight: 44,
-    paddingHorizontal: 14,
+    paddingHorizontal: appSpacing.xl,
     paddingVertical: 10,
     justifyContent: "center",
+    borderBottomWidth: 1,
+    borderBottomColor: appColors.border,
   },
   yearOptionActive: {
     backgroundColor: appColors.primary,
   },
   yearOptionText: {
-    color: appColors.ink,
+    color: appColors.muted,
     fontFamily: fontFamilies.displayBold,
     fontSize: 14,
     lineHeight: 16,
   },
   yearOptionTextActive: {
-    color: appColors.primaryDeep,
+    color: appColors.inkDark,
   },
-  modelGroupsWrap: {
-    gap: 14,
-  },
-  modelGroupBlock: {
-    gap: 10,
-  },
-  selectedModelsWrap: {
-    gap: 10,
-  },
-  modelGroupTitle: {
-    color: appColors.inkSoft,
-    fontFamily: fontFamilies.displayBold,
-    fontSize: 13,
-    lineHeight: 16,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-  },
-  emptyModelsText: {
-    color: appColors.inkSoft,
-    fontFamily: fontFamilies.body,
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  yearSubheading: {
-    color: appColors.inkSoft,
-    fontFamily: fontFamilies.displayBold,
-    fontSize: 13,
-    lineHeight: 15,
-    textTransform: "uppercase",
-  },
+
+  // ── Footer ───────────────────────────────────────────────────────────────
   footer: {
     position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    paddingHorizontal: 20,
-    paddingTop: 14,
-    paddingBottom: 0,
+    left: 0, right: 0, bottom: 0,
+    paddingHorizontal: appSpacing.xxl,
+    paddingTop: appSpacing.lg2,
     backgroundColor: appColors.background,
     borderTopWidth: 1,
-    borderTopColor: appColors.ice,
+    borderTopColor: appColors.border,
     flexDirection: "row",
-    gap: 12,
+    gap: appSpacing.lg,
   },
   clearButton: {
     flex: 1,
     minHeight: 56,
-    borderRadius: 18,
-    backgroundColor: appColors.danger,
+    borderRadius: appRadii.xl,
+    backgroundColor: appColors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: appColors.borderStrong,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
+    gap: appSpacing.md,
   },
   clearButtonText: {
-    color: appColors.white,
+    color: appColors.muted,
     fontFamily: fontFamilies.displayBold,
-    fontSize: 16,
-    lineHeight: 18,
+    fontSize: 14,
+    lineHeight: 16,
+    textTransform: "uppercase",
+    letterSpacing: 1,
   },
   primaryButton: {
-    flex: 1,
+    flex: 2,
     minHeight: 56,
-    borderRadius: 18,
+    borderRadius: appRadii.xl,
     backgroundColor: appColors.primary,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 10,
+    gap: appSpacing.md2,
   },
   primaryButtonText: {
-    color: appColors.primaryDeep,
+    color: appColors.inkDark,
     fontFamily: fontFamilies.displayBold,
     fontSize: 16,
     lineHeight: 18,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
   },
 });

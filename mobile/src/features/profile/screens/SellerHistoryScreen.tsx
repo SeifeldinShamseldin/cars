@@ -4,6 +4,7 @@ import { Button, Card, Chip, Text } from "react-native-paper";
 import { BackArrow } from "../../../shared/components/BackArrow";
 import { ResponsiveImage } from "../../../shared/components/ResponsiveImage";
 import { appColors } from "../../../shared/theme/paperTheme";
+import { appRadii, appSpacing } from "../../../shared/theme/tokens";
 import { fontFamilies } from "../../../shared/theme/typography";
 
 export type SellerHistoryCard = {
@@ -64,7 +65,7 @@ const HistoryCard = ({
         <ResponsiveImage
           source={imageUrl}
           height={160}
-          borderRadius={18}
+          borderRadius={appRadii.xl}
           contentFit="cover"
           backgroundColor={appColors.surfaceAlt}
         />
@@ -110,6 +111,7 @@ const HistoryCard = ({
           disabled={isRequestingFeature}
           style={styles.actionButton}
           contentStyle={styles.actionButtonContent}
+          labelStyle={styles.actionButtonLabel}
         >
           {requestFeatureLabel}
         </Button>
@@ -125,7 +127,6 @@ export const SellerHistoryScreen = ({
   errorLabel,
   emptyLabel,
   loadingMoreLabel,
-  backLabel,
   statusMessage,
   cards,
   isLoading,
@@ -150,7 +151,7 @@ export const SellerHistoryScreen = ({
 
   return (
     <View style={styles.root}>
-      <BackArrow label={backLabel} onPress={onBack} />
+      <BackArrow onPress={onBack} />
 
       <Card mode="elevated" style={styles.heroCard}>
         <Card.Content style={styles.heroContent}>
@@ -200,33 +201,33 @@ export const SellerHistoryScreen = ({
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    gap: 16,
+    gap: appSpacing.xl,
   },
   heroCard: {
-    borderRadius: 24,
-    backgroundColor: appColors.surface,
+    borderRadius: appRadii.xxxl,
+    backgroundColor: appColors.mutedCard,
     borderWidth: 1,
-    borderColor: appColors.ice,
+    borderColor: appColors.border,
   },
   heroContent: {
-    gap: 10,
+    gap: appSpacing.md2,
   },
   title: {
-    color: appColors.ink,
+    color: appColors.white,
     fontSize: 28,
     lineHeight: 34,
     fontFamily: fontFamilies.displayBold,
   },
   subtitle: {
-    color: appColors.inkSoft,
+    color: appColors.muted,
     lineHeight: 22,
   },
   stateLabel: {
-    color: appColors.inkSoft,
+    color: appColors.muted,
     lineHeight: 22,
   },
   statusLabel: {
-    color: appColors.inkSoft,
+    color: appColors.muted,
     lineHeight: 22,
   },
   errorLabel: {
@@ -234,34 +235,34 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   listContent: {
-    gap: 14,
-    paddingBottom: 12,
+    gap: appSpacing.lg2,
+    paddingBottom: appSpacing.lg,
   },
   list: {
     flex: 1,
     minHeight: 0,
   },
   card: {
-    borderRadius: 24,
-    backgroundColor: appColors.surface,
+    borderRadius: appRadii.xxxl,
+    backgroundColor: appColors.mutedCard,
     borderWidth: 1,
-    borderColor: appColors.ice,
+    borderColor: appColors.border,
   },
   cardContent: {
-    gap: 14,
+    gap: appSpacing.lg2,
   },
   cardHeader: {
     flexDirection: "row",
     alignItems: "flex-start",
     justifyContent: "space-between",
-    gap: 12,
+    gap: appSpacing.lg,
   },
   cardHeaderText: {
     flex: 1,
-    gap: 6,
+    gap: appSpacing.sm,
   },
   cardTitle: {
-    color: appColors.ink,
+    color: appColors.white,
     fontSize: 22,
     lineHeight: 28,
     fontFamily: fontFamilies.displayBold,
@@ -278,32 +279,35 @@ const styles = StyleSheet.create({
   metaRow: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 8,
+    gap: appSpacing.md,
   },
   metaChip: {
     backgroundColor: appColors.surfaceAlt,
   },
   actionButton: {
-    borderRadius: 18,
-    backgroundColor: appColors.primary,
+    borderRadius: appRadii.xl,
+    backgroundColor: appColors.white,
   },
   actionButtonContent: {
     minHeight: 50,
   },
+  actionButtonLabel: {
+    color: appColors.inkDark,
+  },
   actionRow: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 10,
+    gap: appSpacing.md2,
   },
   secondaryActionButton: {
-    borderRadius: 16,
-    borderColor: appColors.ice,
+    borderRadius: appRadii.lg,
+    borderColor: appColors.border,
   },
   secondaryActionButtonLabel: {
-    color: appColors.ink,
+    color: appColors.white,
   },
   deleteActionButton: {
-    borderRadius: 16,
+    borderRadius: appRadii.lg,
     borderColor: appColors.danger,
   },
   deleteActionButtonLabel: {
@@ -311,9 +315,9 @@ const styles = StyleSheet.create({
   },
   footer: {
     alignItems: "center",
-    paddingTop: 6,
+    paddingTop: appSpacing.sm,
   },
   footerLabel: {
-    color: appColors.inkSoft,
+    color: appColors.muted,
   },
 });

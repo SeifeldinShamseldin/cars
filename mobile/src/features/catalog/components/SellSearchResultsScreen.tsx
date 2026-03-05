@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BackArrow } from "../../../shared/components/BackArrow";
 import { appColors } from "../../../shared/theme/paperTheme";
 import { fontFamilies } from "../../../shared/theme/typography";
+import { appRadii, appSpacing } from "../../../shared/theme/tokens";
 import {
   CarsCatalogFeed,
   type ActiveFilterBadge,
@@ -67,12 +68,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    gap: 8,
-    paddingHorizontal: 20,
-    paddingBottom: 12,
+    gap: appSpacing.md,
+    paddingHorizontal: appSpacing.xxl,
+    paddingBottom: appSpacing.lg,
   },
   headerTextWrap: {
-    gap: 4,
+    gap: appSpacing.xs,
   },
   title: {
     color: appColors.ink,
@@ -89,20 +90,20 @@ const styles = StyleSheet.create({
   badgesWrap: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 8,
-    paddingHorizontal: 20,
-    paddingBottom: 12,
+    gap: appSpacing.md,
+    paddingHorizontal: appSpacing.xxl,
+    paddingBottom: appSpacing.lg,
   },
   badge: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    borderRadius: 14,
+    gap: appSpacing.sm,
+    borderRadius: appRadii.md,
     borderWidth: 1,
     borderColor: appColors.primary,
     backgroundColor: appColors.primary,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: appSpacing.lg,
+    paddingVertical: appSpacing.md,
   },
   badgeText: {
     color: appColors.primaryDeep,
@@ -113,7 +114,7 @@ const styles = StyleSheet.create({
   badgeIconWrap: {
     width: 16,
     height: 16,
-    borderRadius: 999,
+    borderRadius: appRadii.pill,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: appColors.primaryDeep,

@@ -7,6 +7,7 @@ import type {
 import { CountdownPill } from "../../../shared/components/CountdownPill";
 import { ResponsiveImage } from "../../../shared/components/ResponsiveImage";
 import { appColors } from "../../../shared/theme/paperTheme";
+import { appRadii, appSpacing } from "../../../shared/theme/tokens";
 import { fontFamilies } from "../../../shared/theme/typography";
 
 type ImposterScreenProps = {
@@ -72,7 +73,7 @@ export const ImposterScreen = ({
             <ResponsiveImage
               source={payload.imageUrl}
               height={imageHeight}
-              borderRadius={18}
+              borderRadius={appRadii.xl}
               priority="high"
             />
             <View style={styles.promptCard}>
@@ -112,7 +113,7 @@ export const ImposterScreen = ({
           <ResponsiveImage
             source={results.normalCarImageUrl}
             height={imageHeight}
-            borderRadius={18}
+            borderRadius={appRadii.xl}
             priority="high"
           />
           <Chip compact style={styles.metaChip}>
@@ -121,7 +122,7 @@ export const ImposterScreen = ({
           <ResponsiveImage
             source={results.imposterCarImageUrl}
             height={imageHeight}
-            borderRadius={18}
+            borderRadius={appRadii.xl}
             priority="high"
           />
           {roomClosesAt ? (
@@ -159,30 +160,30 @@ export const ImposterScreen = ({
 
 const styles = StyleSheet.create({
   heroCard: {
-    borderRadius: 28,
+    borderRadius: appRadii.mega,
     backgroundColor: appColors.surface,
     borderWidth: 1,
     borderColor: appColors.ice,
   },
   card: {
-    borderRadius: 24,
+    borderRadius: appRadii.xxxl,
     backgroundColor: appColors.surface,
     borderWidth: 1,
     borderColor: appColors.ice,
   },
   heroSection: {
-    gap: 14,
+    gap: appSpacing.lg2,
     minHeight: 230,
     justifyContent: "flex-end",
   },
   section: {
-    gap: 14,
+    gap: appSpacing.lg2,
   },
   topRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
-    gap: 12,
+    gap: appSpacing.lg,
   },
   eyebrow: {
     color: appColors.primary,
@@ -213,10 +214,10 @@ const styles = StyleSheet.create({
     paddingBottom: 2,
   },
   promptCard: {
-    borderRadius: 18,
+    borderRadius: appRadii.xl,
     backgroundColor: appColors.surfaceAlt,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingHorizontal: appSpacing.lg2,
+    paddingVertical: appSpacing.lg,
   },
   prompt: {
     color: appColors.inkSoft,
@@ -227,13 +228,13 @@ const styles = StyleSheet.create({
     backgroundColor: appColors.surfaceAlt,
   },
   exitButton: {
-    borderRadius: 18,
+    borderRadius: appRadii.xl,
     backgroundColor: appColors.danger,
-    marginTop: 6,
+    marginTop: appSpacing.sm,
   },
   footerActions: {
-    gap: 10,
-    marginTop: 6,
+    gap: appSpacing.md2,
+    marginTop: appSpacing.sm,
   },
   exitButtonContent: {
     minHeight: 52,
@@ -242,14 +243,14 @@ const styles = StyleSheet.create({
     color: appColors.white,
   },
   rematchButton: {
-    borderRadius: 18,
+    borderRadius: appRadii.xl,
     backgroundColor: appColors.accent,
   },
   rematchButtonLabel: {
     color: appColors.ink,
   },
   leaveButton: {
-    borderRadius: 18,
+    borderRadius: appRadii.xl,
     borderColor: appColors.ice,
   },
   leaveButtonLabel: {

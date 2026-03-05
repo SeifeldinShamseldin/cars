@@ -2,7 +2,9 @@ import { Keyboard, Pressable, StyleSheet, View } from "react-native";
 import { Button, Card, HelperText, SegmentedButtons, Text, TextInput } from "react-native-paper";
 
 import type { SellerType } from "../../../shared/api/catalog";
+import { BackArrow } from "../../../shared/components/BackArrow";
 import { appColors } from "../../../shared/theme/paperTheme";
+import { appRadii, appSpacing } from "../../../shared/theme/tokens";
 import { fontFamilies } from "../../../shared/theme/typography";
 
 type SellerSignupScreenProps = {
@@ -33,6 +35,12 @@ type SellerSignupScreenProps = {
   onBack: () => void;
 };
 
+const inputProps = {
+  textColor: appColors.white,
+  placeholderTextColor: appColors.muted,
+  selectionColor: appColors.primary,
+};
+
 export const SellerSignupScreen = ({
   title,
   subtitle,
@@ -44,7 +52,6 @@ export const SellerSignupScreen = ({
   ownerLabel,
   dealerLabel,
   saveLabel,
-  backLabel,
   nameValue,
   phoneValue,
   pinValue,
@@ -63,11 +70,13 @@ export const SellerSignupScreen = ({
   <Pressable onPress={Keyboard.dismiss}>
     <Card mode="elevated" style={styles.card}>
       <Card.Content style={styles.content}>
+        <BackArrow onPress={onBack} />
         <Text style={styles.title}>{title}</Text>
         <Text variant="bodyLarge" style={styles.subtitle}>
           {subtitle}
         </Text>
         <TextInput
+          {...inputProps}
           mode="flat"
           label={nameLabel}
           value={nameValue}
@@ -77,6 +86,7 @@ export const SellerSignupScreen = ({
           activeUnderlineColor="transparent"
         />
         <TextInput
+          {...inputProps}
           mode="flat"
           label={phoneLabel}
           value={phoneValue}
@@ -87,6 +97,7 @@ export const SellerSignupScreen = ({
           activeUnderlineColor="transparent"
         />
         <TextInput
+          {...inputProps}
           mode="flat"
           label={pinLabel}
           value={pinValue}
@@ -99,6 +110,7 @@ export const SellerSignupScreen = ({
           activeUnderlineColor="transparent"
         />
         <TextInput
+          {...inputProps}
           mode="flat"
           label={confirmPinLabel}
           value={confirmPinValue}
@@ -137,16 +149,9 @@ export const SellerSignupScreen = ({
           }
           style={styles.button}
           contentStyle={styles.buttonContent}
+          labelStyle={styles.buttonLabel}
         >
           {saveLabel}
-        </Button>
-        <Button
-          mode="text"
-          onPress={onBack}
-          style={styles.secondaryButton}
-          labelStyle={styles.secondaryButtonLabel}
-        >
-          {backLabel}
         </Button>
       </Card.Content>
     </Card>
@@ -155,33 +160,35 @@ export const SellerSignupScreen = ({
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 24,
-    backgroundColor: appColors.surface,
+    borderRadius: appRadii.xxxl,
+    backgroundColor: appColors.mutedCard,
     borderWidth: 1,
-    borderColor: appColors.ice,
+    borderColor: appColors.border,
   },
   content: {
-    gap: 14,
+    gap: appSpacing.lg2,
   },
   title: {
-    color: appColors.ink,
+    color: appColors.white,
     fontSize: 28,
     lineHeight: 34,
     fontFamily: fontFamilies.displayBold,
   },
   subtitle: {
-    color: appColors.inkSoft,
+    color: appColors.muted,
     lineHeight: 22,
   },
   input: {
-    backgroundColor: appColors.surfaceAlt,
-    borderRadius: 18,
+    backgroundColor: appColors.inputBg,
+    borderWidth: 1,
+    borderColor: appColors.inputBorder,
+    borderRadius: appRadii.xl,
   },
   segmentedSection: {
-    gap: 10,
+    gap: appSpacing.md2,
   },
   segmentedLabel: {
-    color: appColors.ink,
+    color: appColors.white,
     fontSize: 16,
     fontFamily: fontFamilies.display,
   },
@@ -192,16 +199,13 @@ const styles = StyleSheet.create({
     marginLeft: 0,
   },
   button: {
-    borderRadius: 18,
-    backgroundColor: appColors.primary,
+    borderRadius: appRadii.xl,
+    backgroundColor: appColors.white,
   },
   buttonContent: {
     minHeight: 56,
   },
-  secondaryButton: {
-    borderRadius: 18,
-  },
-  secondaryButtonLabel: {
-    color: appColors.inkSoft,
+  buttonLabel: {
+    color: appColors.inkDark,
   },
 });

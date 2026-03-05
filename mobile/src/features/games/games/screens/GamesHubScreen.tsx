@@ -1,7 +1,8 @@
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
-import { Card, Text } from "react-native-paper";
+import { Text } from "react-native-paper";
 
 import { appColors } from "../../../../shared/theme/paperTheme";
+import { appRadii, appSpacing, withAlpha } from "../../../../shared/theme/tokens";
 import { fontFamilies } from "../../../../shared/theme/typography";
 import type { HubGame } from "../../types";
 
@@ -43,67 +44,49 @@ export const GamesHubScreen = ({
       </View>
 
       <View style={styles.tipBanner}>
+        <View style={styles.tipAccent} />
         <Text style={styles.tipText}>{tipLabel}</Text>
       </View>
 
       <View style={styles.grid}>
         {cards.map((game, index) => {
+          const isPrimary = index === 0;
           return (
             <Pressable
               key={game.id}
               onPress={() => onOpenGame(game.id)}
               style={styles.cardPressable}
             >
-              <Card
-                mode="elevated"
-                style={[styles.card, index === 0 ? styles.cardPrimary : styles.cardNeutral]}
-              >
-                <Card.Content style={styles.cardContent}>
+              <View style={[styles.card, isPrimary ? styles.cardPrimary : styles.cardNeutral]}>
+                <View style={styles.cardContent}>
+                  {/* Top row: accent bar + index number — exactly as original */}
                   <View style={styles.cardTopRow}>
-                    <View
-                      style={[
-                        styles.cardAccent,
-                        index === 0 ? styles.cardAccentLight : styles.cardAccentDark,
-                      ]}
-                    />
-                    <Text style={[styles.cardIndex, index === 0 && styles.cardIndexActive]}>
+                    <View style={[styles.cardAccent, isPrimary ? styles.cardAccentLight : styles.cardAccentYellow]} />
+                    <Text style={[styles.cardIndex, isPrimary && styles.cardIndexActive]}>
                       0{index + 1}
                     </Text>
                   </View>
-                  <Text
-                    style={[
-                      styles.cardTitle,
-                      index === 0 ? styles.cardTitleLight : styles.cardTitleDark,
-                    ]}
-                  >
+
+                  <Text style={[styles.cardTitle, isPrimary ? styles.cardTitleDark : styles.cardTitleLight]}>
                     {game.title}
                   </Text>
-                  <Text
-                    variant="bodyMedium"
-                    style={[
-                      styles.cardDescription,
-                      index === 0 ? styles.cardDescriptionLight : styles.cardDescriptionDark,
-                    ]}
-                  >
+
+                  <Text style={[styles.cardDescription, isPrimary ? styles.cardDescDark : styles.cardDescLight]}>
                     {game.description}
                   </Text>
+
                   <View style={styles.cardFooter}>
-                    <Text
-                      style={[
-                        styles.cardCta,
-                        index === 0 ? styles.cardTitleLight : styles.cardTitleDark,
-                      ]}
-                    >
+                    <Text style={[styles.cardCta, isPrimary ? styles.cardTitleDark : styles.cardTitleLight]}>
                       {tapToPlayLabel}
                     </Text>
-                    <View style={[styles.goButton, index === 0 && styles.goButtonLight]}>
-                      <Text style={[styles.goText, index === 0 && styles.goTextLight]}>
+                    <View style={[styles.goButton, isPrimary ? styles.goButtonDark : styles.goButtonYellow]}>
+                      <Text style={[styles.goText, isPrimary ? styles.goTextDark : styles.goTextYellow]}>
                         {goLabel}
                       </Text>
                     </View>
                   </View>
-                </Card.Content>
-              </Card>
+                </View>
+              </View>
             </Pressable>
           );
         })}
@@ -115,17 +98,19 @@ export const GamesHubScreen = ({
 const styles = StyleSheet.create({
   root: {
     flex: 1,
+    backgroundColor: appColors.background,
   },
   scroll: {
     flex: 1,
   },
+  // Original values preserved exactly
   scrollContent: {
-    gap: 16,
+    gap: appSpacing.xl,
     paddingTop: 4,
     paddingBottom: 8,
   },
   heading: {
-    gap: 6,
+    gap: appSpacing.sm,
     marginTop: 0,
   },
   eyebrow: {
@@ -137,59 +122,75 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
   },
   title: {
-    color: appColors.ink,
+    color: appColors.white,
     fontFamily: fontFamilies.displayBold,
     fontSize: 30,
     lineHeight: 32,
+    textTransform: "uppercase",
+    letterSpacing: -0.5,
   },
   subtitle: {
-    color: appColors.inkSoft,
+    color: appColors.muted,
     fontFamily: fontFamilies.body,
     fontSize: 14,
     lineHeight: 20,
     maxWidth: 280,
   },
   tipBanner: {
-    borderRadius: 18,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    borderRadius: appRadii.xl,
+    paddingHorizontal: appSpacing.lg2,
+    paddingVertical: appSpacing.lg,
     backgroundColor: appColors.surfaceAlt,
     borderWidth: 1,
-    borderColor: appColors.ice,
+    borderColor: appColors.border,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: appSpacing.md2,
+  },
+  tipAccent: {
+    width: 4,
+    height: 24,
+    borderRadius: appRadii.pill,
+    backgroundColor: appColors.primary,
   },
   tipText: {
-    color: appColors.inkSoft,
+    flex: 1,
+    color: appColors.muted,
     fontFamily: fontFamilies.displayBold,
     fontSize: 12,
     lineHeight: 16,
   },
   grid: {
-    gap: 14,
+    gap: appSpacing.lg2,
     paddingBottom: 8,
   },
   cardPressable: {
     width: "100%",
   },
+  // Original: height 236, borderRadius 24, overflow hidden, borderWidth 1
   card: {
     height: 236,
-    borderRadius: 24,
+    borderRadius: appRadii.xxxl,
     overflow: "hidden",
     borderWidth: 1,
   },
   cardPrimary: {
     backgroundColor: appColors.primary,
-    borderColor: "rgba(231, 211, 26, 0.28)",
+    borderColor: withAlpha(appColors.primary, 0.28),
   },
   cardNeutral: {
-    backgroundColor: appColors.surfaceAlt,
-    borderColor: appColors.ice,
+    backgroundColor: appColors.mutedCard,
+    borderColor: appColors.borderStrong,
   },
+  // Original: height 100%, gap 12, paddingTop 16, paddingBottom 14
   cardContent: {
     height: "100%",
-    gap: 12,
-    paddingTop: 16,
-    paddingBottom: 14,
+    gap: appSpacing.lg,
+    paddingTop: appSpacing.xl,
+    paddingBottom: appSpacing.lg2,
+    paddingHorizontal: appSpacing.xl,
   },
+  // Original: row, space-between, minHeight 28
   cardTopRow: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -197,50 +198,54 @@ const styles = StyleSheet.create({
     minHeight: 28,
   },
   cardIndex: {
-    color: "rgba(244, 244, 239, 0.20)",
+    color: withAlpha(appColors.ink, 0.2),
     fontSize: 26,
     lineHeight: 30,
     fontFamily: fontFamilies.displayBold,
   },
   cardIndexActive: {
-    color: "rgba(9, 10, 13, 0.16)",
+    color: withAlpha(appColors.primaryDeep, 0.16),
   },
   cardAccent: {
     width: 62,
     height: 8,
-    borderRadius: 999,
+    borderRadius: appRadii.pill,
   },
   cardAccentLight: {
-    backgroundColor: appColors.white,
+    backgroundColor: withAlpha(appColors.inkDark, 0.25),
   },
-  cardAccentDark: {
+  cardAccentYellow: {
     backgroundColor: appColors.primary,
   },
+  // Original: fontSize 28, lineHeight 32, maxWidth 190, paddingTop 2
   cardTitle: {
     fontSize: 28,
     lineHeight: 32,
     fontFamily: fontFamilies.displayBold,
-    textTransform: "none",
+    textTransform: "uppercase",
+    letterSpacing: -0.5,
     maxWidth: 190,
     paddingTop: 2,
   },
   cardTitleLight: {
-    color: appColors.primaryDeep,
+    color: appColors.white,
   },
   cardTitleDark: {
-    color: appColors.ink,
+    color: appColors.inkDark,
   },
+  // Original: flex 1, fontSize 14, lineHeight 21, maxWidth 200
   cardDescription: {
     flex: 1,
     fontSize: 14,
     lineHeight: 21,
+    fontFamily: fontFamilies.body,
     maxWidth: 200,
   },
-  cardDescriptionLight: {
-    color: "rgba(9, 10, 13, 0.76)",
+  cardDescLight: {
+    color: withAlpha(appColors.white, 0.6),
   },
-  cardDescriptionDark: {
-    color: "rgba(244, 244, 239, 0.74)",
+  cardDescDark: {
+    color: withAlpha(appColors.primaryDeep, 0.72),
   },
   cardFooter: {
     flexDirection: "row",
@@ -251,25 +256,32 @@ const styles = StyleSheet.create({
     fontFamily: fontFamilies.displayBold,
     fontSize: 13,
     letterSpacing: 0.2,
+    textTransform: "uppercase",
   },
+  // Original: 40x40, borderRadius 14
   goButton: {
     width: 40,
     height: 40,
-    borderRadius: 14,
-    backgroundColor: appColors.primary,
+    borderRadius: appRadii.md,
     alignItems: "center",
     justifyContent: "center",
   },
-  goButtonLight: {
-    backgroundColor: appColors.primaryDeep,
+  goButtonYellow: {
+    backgroundColor: appColors.primary,
+  },
+  goButtonDark: {
+    backgroundColor: appColors.inkDark,
   },
   goText: {
-    color: appColors.primaryDeep,
     fontFamily: fontFamilies.displayBold,
     fontSize: 12,
     lineHeight: 14,
+    textTransform: "uppercase",
   },
-  goTextLight: {
+  goTextYellow: {
+    color: appColors.inkDark,
+  },
+  goTextDark: {
     color: appColors.primary,
   },
 });

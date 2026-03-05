@@ -10,6 +10,7 @@ import {
 import { Text } from "react-native-paper";
 
 import { appColors } from "../../../shared/theme/paperTheme";
+import { appRadii, appSpacing, withAlpha } from "../../../shared/theme/tokens";
 import { fontFamilies } from "../../../shared/theme/typography";
 
 const keyImage = require("../../../../assets/images/porsche-992-key.png");
@@ -214,9 +215,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: appColors.background,
-    paddingHorizontal: 24,
-    paddingTop: 28,
-    paddingBottom: 36,
+    paddingHorizontal: appSpacing.xxxl,
+    paddingTop: appSpacing.xxxl2,
+    paddingBottom: appSpacing.giant,
   },
   hero: {
     flex: 1,
@@ -231,7 +232,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     marginTop: -30,
-    color: "rgba(255,255,255,0.14)",
+    color: withAlpha(appColors.white, 0.14),
     fontFamily: fontFamilies.displayBold,
     fontSize: 60,
     lineHeight: 60,
@@ -239,7 +240,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   backdropBrandHighlight: {
-    color: "rgba(255,255,255,0.58)",
+    color: withAlpha(appColors.white, 0.58),
   },
   keyFrame: {
     width: "100%",
@@ -262,12 +263,12 @@ const styles = StyleSheet.create({
   },
   bottomStack: {
     position: "absolute",
-    left: 24,
-    right: 24,
-    bottom: 36,
+    left: appSpacing.xxxl,
+    right: appSpacing.xxxl,
+    bottom: appSpacing.giant,
   },
   bottomInfo: {
-    marginBottom: 28,
+    marginBottom: appSpacing.xxxl2,
   },
   prompt: {
     alignSelf: "flex-start",
@@ -282,7 +283,7 @@ const styles = StyleSheet.create({
   logoWrap: {
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 12,
+    marginBottom: appSpacing.lg,
   },
   logoImage: {
     width: 148,
@@ -291,13 +292,13 @@ const styles = StyleSheet.create({
   progressRail: {
     height: 6,
     width: "100%",
-    borderRadius: 999,
-    backgroundColor: "rgba(255,255,255,0.12)",
+    borderRadius: appRadii.pill,
+    backgroundColor: withAlpha(appColors.white, 0.12),
     overflow: "hidden",
   },
   progressFill: {
     height: "100%",
-    borderRadius: 999,
+    borderRadius: appRadii.pill,
     backgroundColor: appColors.primary,
   },
 });

@@ -2,6 +2,7 @@ import { Pressable, StyleSheet, View } from "react-native";
 import { Icon, Text } from "react-native-paper";
 
 import { appColors } from "../theme/paperTheme";
+import { appRadii, appShadows, appSpacing } from "../theme/tokens";
 import { fontFamilies } from "../theme/typography";
 
 type BackArrowProps = {
@@ -13,12 +14,12 @@ export const BackArrow = ({ label, onPress }: BackArrowProps) => (
   <Pressable
     accessibilityRole="button"
     accessibilityLabel={label ?? "Back"}
-    hitSlop={10}
+    hitSlop={12}
     onPress={onPress}
     style={styles.pressable}
   >
     <View style={styles.iconWrap}>
-      <Icon source="arrow-left" size={24} color={appColors.ink} />
+      <Icon source="chevron-left" size={26} color={appColors.inkDark} />
     </View>
     {label ? <Text style={styles.label}>{label}</Text> : null}
   </Pressable>
@@ -29,15 +30,16 @@ const styles = StyleSheet.create({
     alignSelf: "flex-start",
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    gap: appSpacing.sm,
   },
   iconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 45,
+    height: 45,
+    borderRadius: appRadii.xxl2,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "transparent",
+    backgroundColor: appColors.surfaceBright,
+    ...appShadows.sm,
   },
   label: {
     color: appColors.inkSoft,
